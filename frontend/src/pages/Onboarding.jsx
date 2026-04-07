@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Trash2,
   Dumbbell, DollarSign, BookOpen, Heart,
-  Users, Briefcase, Brain, Palette, Sparkles,
+  Users, Briefcase, Brain, Palette, Sparkles, Infinity,
 } from "lucide-react";
 import { useAspects } from "../../utils/useAspects";
 import AdvisoryModal from "../components/AdvisoryModal";
@@ -22,14 +22,15 @@ const ASPECT_OPTIONS = [
   { type: "custom",        label: "Custom Goal",       icon: Sparkles,   color: "#6366F1", description: "Define your own path" },
 ];
 
+// Duration options — null days = forever
 const DURATION_OPTIONS = [
-  { days: 30, label: "30 Days", sub: "A solid start" },
-  { days: 60, label: "60 Days", sub: "Build real habits" },
-  { days: 90, label: "90 Days", sub: "Transform your life" },
+  { days: 30,   label: "30 Days",  sub: "A solid start",         icon: null      },
+  { days: 60,   label: "60 Days",  sub: "Build real habits",     icon: null      },
+  { days: 90,   label: "90 Days",  sub: "Transform your life",   icon: null      },
+  { days: null, label: "Forever",  sub: "No end date, just consistency", icon: Infinity },
 ];
 
-const STEPS = ["Pick a Lock", "Set your sprint", "Your why", "Daily actions", "Make it yours"];
-
+const STEPS    = ["Pick a Lock", "Set your sprint", "Your why", "Daily actions", "Make it yours"];
 const PLACEHOLDERS = [
   "e.g. 30 min workout",
   "e.g. Track all meals",
@@ -37,7 +38,6 @@ const PLACEHOLDERS = [
   "e.g. 10 min stretching",
   "e.g. Sleep by 10pm",
 ];
-
 const COLORS = [
   "#FF6B6B", "#10B981", "#3B82F6", "#EC4899",
   "#F59E0B", "#8B5CF6", "#06B6D4", "#F97316",
@@ -60,20 +60,22 @@ export default function Onboarding() {
   const navigate       = useNavigate();
   const { createAspect } = useAspects();
 
-  const [step, setStep]     = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState(null);
+  const [step, setStep]         = useState(0);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState(null);
   const [showAdvisory, setShowAdvisory] = useState(false);
 
   // Form state
   const [selectedType, setSelectedType] = useState(null);
   const [customName, setCustomName]     = useState("");
-  const [duration, setDuration]         = useState(30);
+  const [duration, setDuration]         = useState(30);     // null = forever
   const [why, setWhy]                   = useState("");
   const [activities, setActivities]     = useState([""]);
   const [color, setColor]               = useState("#6366F1");
 
-  const selected = ASPECT_OPTIONS.find(a => a.type === selectedType);
+  const selected     = ASPECT_OPTIONS.find(a => a.type === selectedType);
+  const isForever    = duration === null;
+  const filledCount  = activities.filter(a => a.trim()).length;
 
   const handleSelectType = (type) => {
     setSelectedType(type);
@@ -82,25 +84,21 @@ export default function Onboarding() {
   };
 
   const updateActivity = (i, val) =>
-    setActivities(prev => prev.map((a, idx) => (idx === i ? val : a)));
+    setActivities(prev => prev.map((a, idx) => idx === i ? val : a));
 
   const removeActivity = (i) =>
     setActivities(prev => prev.filter((_, idx) => idx !== i));
 
   const requestAddActivity = () => {
-    const filled = activities.filter(a => a.trim()).length;
-    if (filled >= 3) {
-      setShowAdvisory(true);
-    } else {
-      setActivities(prev => [...prev, ""]);
-    }
+    if (filledCount >= 3) setShowAdvisory(true);
+    else setActivities(prev => [...prev, ""]);
   };
 
   const canProceed = () => {
     if (step === 0) return !!selectedType && (selectedType !== "custom" || customName.trim());
-    if (step === 1) return !!duration;
+    if (step === 1) return duration !== undefined; // null (forever) is valid
     if (step === 2) return true;
-    if (step === 3) return activities.filter(a => a.trim()).length >= 1;
+    if (step === 3) return filledCount >= 1;
     return true;
   };
 
@@ -108,16 +106,21 @@ export default function Onboarding() {
     setSaving(true);
     setError(null);
 
-    const today      = new Date();
-    const targetDate = new Date(today);
-    targetDate.setDate(targetDate.getDate() + duration);
-    const fmt = (d) => d.toISOString().split("T")[0];
+    const today = new Date();
+    const fmt   = (d) => d.toISOString().split("T")[0];
+
+    let targetDate = null;
+    if (!isForever) {
+      const td = new Date(today);
+      td.setDate(td.getDate() + duration);
+      targetDate = fmt(td);
+    }
 
     const result = await createAspect({
       aspect_type:        selectedType,
       custom_name:        selectedType === "custom" ? customName.trim() : null,
       start_date:         fmt(today),
-      target_date:        fmt(targetDate),
+      target_date:        targetDate,   // null for forever
       why_statement:      why.trim(),
       color,
       icon:               "target",
@@ -129,7 +132,14 @@ export default function Onboarding() {
     else setError(result.error);
   };
 
-  const filledCount = activities.filter(a => a.trim()).length;
+  // End date label shown in step 1 preview
+  const endDateLabel = isForever
+    ? "No end date — just keep going"
+    : (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + duration);
+        return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      })();
 
   return (
     <>
@@ -141,14 +151,14 @@ export default function Onboarding() {
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">
               Locked<span className="text-indigo-600">In</span>
             </h1>
-            <p className="text-gray-400 text-sm mt-1">Set up your first Lock</p>
+            <p className="text-gray-400 text-sm mt-1">Create a new Lock</p>
           </div>
 
           <StepBar current={step} total={STEPS.length} />
 
           <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8">
 
-            {/* ── Step 0: Pick lock type ── */}
+            {/* ── Step 0: Pick type ── */}
             {step === 0 && (
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">What do you want to lock in on?</h2>
@@ -157,9 +167,7 @@ export default function Onboarding() {
                   {ASPECT_OPTIONS.map(({ type, label, icon: Icon, color: c, description }) => (
                     <button key={type} onClick={() => handleSelectType(type)}
                       className={`flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition-all duration-200 ${
-                        selectedType === type
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        selectedType === type ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}>
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{ backgroundColor: c + "22" }}>
@@ -169,22 +177,17 @@ export default function Onboarding() {
                         <div className="font-semibold text-gray-800 text-sm">{label}</div>
                         <div className="text-gray-400 text-xs truncate">{description}</div>
                       </div>
-                      {selectedType === type && (
-                        <Check className="w-4 h-4 text-indigo-600 ml-auto flex-shrink-0" />
-                      )}
+                      {selectedType === type && <Check className="w-4 h-4 text-indigo-600 ml-auto flex-shrink-0" />}
                     </button>
                   ))}
                 </div>
                 {selectedType === "custom" && (
                   <div className="mt-4">
-                    <input type="text"
-                      placeholder="Name your Lock…"
-                      value={customName}
-                      onChange={e => setCustomName(e.target.value)}
+                    <input type="text" placeholder="Name your Lock…"
+                      value={customName} onChange={e => setCustomName(e.target.value)}
                       maxLength={60}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                      style={{ color: "#111827" }}
-                    />
+                      style={{ color: "#111827" }} />
                   </div>
                 )}
               </div>
@@ -194,29 +197,35 @@ export default function Onboarding() {
             {step === 1 && (
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">How long is your sprint?</h2>
-                <p className="text-gray-400 text-sm mb-6">Commit to a clear end date.</p>
+                <p className="text-gray-400 text-sm mb-6">
+                  Choose a fixed period to build momentum, or go forever if you want this to be a permanent habit.
+                </p>
                 <div className="space-y-3">
-                  {DURATION_OPTIONS.map(({ days, label, sub }) => (
-                    <button key={days} onClick={() => setDuration(days)}
+                  {DURATION_OPTIONS.map(({ days, label, sub, icon: DIcon }) => (
+                    <button key={String(days)} onClick={() => setDuration(days)}
                       className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 ${
                         duration === days ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-gray-300"
                       }`}>
-                      <div className="text-left">
-                        <div className="font-bold text-gray-800">{label}</div>
-                        <div className="text-gray-400 text-sm">{sub}</div>
+                      <div className="flex items-center gap-3">
+                        {DIcon && (
+                          <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                            <DIcon className="w-4 h-4 text-indigo-600" />
+                          </div>
+                        )}
+                        <div className="text-left">
+                          <div className="font-bold text-gray-800">{label}</div>
+                          <div className="text-gray-400 text-sm">{sub}</div>
+                        </div>
                       </div>
-                      {duration === days && <Check className="w-5 h-5 text-indigo-600" />}
+                      {duration === days && <Check className="w-5 h-5 text-indigo-600 flex-shrink-0" />}
                     </button>
                   ))}
                 </div>
+
                 {selected && (
                   <div className="mt-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
-                    <div className="text-xs text-gray-400">Sprint ends</div>
-                    <div className="font-semibold text-gray-800 mt-0.5">
-                      {new Date(Date.now() + duration * 86400000).toLocaleDateString("en-US", {
-                        month: "long", day: "numeric", year: "numeric",
-                      })}
-                    </div>
+                    <div className="text-xs text-gray-400">{isForever ? "This Lock" : "Sprint ends"}</div>
+                    <div className="font-semibold text-gray-800 mt-0.5">{endDateLabel}</div>
                   </div>
                 )}
               </div>
@@ -231,12 +240,9 @@ export default function Onboarding() {
                 </p>
                 <textarea rows={5}
                   placeholder={`Why do you want to lock in on ${selected?.label || "this"}?\n\ne.g. "I want to feel confident and have energy…"`}
-                  value={why}
-                  onChange={e => setWhy(e.target.value)}
-                  maxLength={500}
+                  value={why} onChange={e => setWhy(e.target.value)} maxLength={500}
                   className="w-full px-4 py-3 border border-gray-300 rounded-2xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
-                  style={{ color: "#111827" }}
-                />
+                  style={{ color: "#111827" }} />
                 <div className="text-right text-xs text-gray-400 mt-1">{why.length}/500</div>
               </div>
             )}
@@ -245,13 +251,11 @@ export default function Onboarding() {
             {step === 3 && (
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">Your daily actions</h2>
-                <p className="text-gray-400 text-sm mb-1">
-                  What will you do every day to make progress?
-                </p>
+                <p className="text-gray-400 text-sm mb-1">What will you do every day to make progress?</p>
                 <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-5">
                   <p className="text-amber-700 text-xs">
-                    We recommend <span className="font-semibold">3 focused actions</span> — you decide how many works for you.
-                    You can also change these daily inside your Lock.
+                    We recommend <span className="font-semibold">3 focused actions max</span> — you decide
+                    how many works for you. You can change these any time inside your Lock.
                   </p>
                 </div>
 
@@ -264,12 +268,10 @@ export default function Onboarding() {
                       </div>
                       <input type="text"
                         placeholder={PLACEHOLDERS[i] || `Action ${i + 1}…`}
-                        value={act}
-                        onChange={e => updateActivity(i, e.target.value)}
+                        value={act} onChange={e => updateActivity(i, e.target.value)}
                         maxLength={120}
                         className="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                        style={{ color: "#111827" }}
-                      />
+                        style={{ color: "#111827" }} />
                       {activities.length > 1 && (
                         <button onClick={() => removeActivity(i)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0">
@@ -308,8 +310,7 @@ export default function Onboarding() {
                         className={`w-9 h-9 rounded-full transition-transform duration-150 ${
                           color === c ? "scale-125 ring-2 ring-offset-2 ring-gray-400" : "hover:scale-110"
                         }`}
-                        style={{ backgroundColor: c }}
-                      />
+                        style={{ backgroundColor: c }} />
                     ))}
                   </div>
                 </div>
@@ -325,7 +326,9 @@ export default function Onboarding() {
                       <div className="font-bold text-gray-800">
                         {selectedType === "custom" ? customName || "My Lock" : selected?.label}
                       </div>
-                      <div className="text-sm text-gray-500">{duration} day sprint</div>
+                      <div className="text-sm text-gray-500">
+                        {isForever ? "Forever" : `${duration} day sprint`}
+                      </div>
                     </div>
                   </div>
                   {activities.filter(a => a.trim()).length > 0 && (
@@ -346,9 +349,7 @@ export default function Onboarding() {
                 </div>
 
                 {error && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                    {error}
-                  </div>
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>
                 )}
               </div>
             )}
@@ -363,7 +364,7 @@ export default function Onboarding() {
               ) : (
                 <button onClick={() => navigate("/aspects")}
                   className="text-gray-400 hover:text-gray-600 text-sm transition-colors">
-                  Skip for now
+                  Cancel
                 </button>
               )}
 
@@ -375,7 +376,7 @@ export default function Onboarding() {
               ) : (
                 <button onClick={handleFinish} disabled={saving}
                   className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-xl transition-all">
-                  {saving ? "Creating…" : "Start my sprint"}
+                  {saving ? "Creating…" : "Create Lock"}
                   {!saving && <Check className="w-4 h-4" />}
                 </button>
               )}

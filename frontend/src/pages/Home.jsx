@@ -2,20 +2,16 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Quote, TrendingUp, ChevronRight, Flame,
-  Plus, Check, Layers, Star, ShieldCheck,
-  Gem, Rocket, Crown, Sparkles, Lock,
-  Info, AlertCircle,
+  Quote, ChevronRight, Flame, Plus, Check,
+  Layers, Star, ShieldCheck, Gem, Rocket, Crown, Sparkles, Lock,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import StreakCelebrationModal from "../components/StreakCelebrationModal";
 import api from "../../utils/api";
 import { useAspects } from "../../utils/useAspects";
 import {
-  PAGE, CONTAINER, CARD, CARD_PADDED, TEXT,
-  BTN, STREAK_BADGE, NOTICE, NOTICE_TEXT,
-  PROGRESS_TRACK, PROGRESS_FILL,
-  LOCK_ACCENT_BAR, DIVIDER,
+  PAGE, CONTAINER, CARD, TEXT, BTN,
+  PROGRESS_TRACK, PROGRESS_FILL, LOCK_ACCENT_BAR, DIVIDER,
 } from "../../utils/design";
 
 // ─── Level definitions ────────────────────────────────────────────────────────
@@ -39,29 +35,27 @@ const getLevel = (streak) => {
 
 // ─── Level strip ──────────────────────────────────────────────────────────────
 const LevelStrip = ({ streakData, loading }) => {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   if (loading || !streakData) return null;
 
-  const streak   = streakData.current_streak;
-  const level    = getLevel(streak);
+  const streak    = streakData.current_streak;
+  const level     = getLevel(streak);
   const LevelIcon = level.icon;
-  const badgeCount = LEVELS.filter(l => streak >= l.requirement).length;
+  const unlocked  = LEVELS.filter(l => streak >= l.requirement).length;
 
   return (
     <div
       onClick={() => navigate("/profile")}
       className={`${CARD} p-3 mb-4 flex items-center gap-3 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98]`}
     >
-      <div
-        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: level.color + "20" }}
-      >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: level.color + "20" }}>
         <LevelIcon className="w-5 h-5" style={{ color: level.color }} />
       </div>
       <div className="flex-1 min-w-0">
         <span className={TEXT.cardTitle}>{level.name}</span>
         <span className="text-gray-300 mx-1.5 text-xs">·</span>
-        <span className={TEXT.caption}>{badgeCount} of {LEVELS.length} badges</span>
+        <span className={TEXT.caption}>{unlocked} of {LEVELS.length} badges</span>
       </div>
       <div className="text-right flex-shrink-0">
         <div className="text-base font-black" style={{ color: level.color }}>{streak}</div>
@@ -83,7 +77,7 @@ const QuoteCard = ({ quote, loading, error }) => (
       <div className="animate-pulse space-y-2">
         <div className="h-3.5 bg-gray-200 rounded w-full" />
         <div className="h-3.5 bg-gray-200 rounded w-4/5" />
-        <div className="h-3 bg-gray-200 rounded w-1/3 mt-1" />
+        <div className="h-3 bg-gray-200 rounded w-1/3" />
       </div>
     )}
     {error && <p className={TEXT.caption}>{error}</p>}
@@ -96,20 +90,7 @@ const QuoteCard = ({ quote, loading, error }) => (
   </div>
 );
 
-// ─── Activity notice ──────────────────────────────────────────────────────────
-// Shows inside the Daily Tasks Lock when it has no activities set
-const ActivityNotice = () => (
-  <div className={`${NOTICE} flex items-start gap-2.5 mb-3`}>
-    <Info className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-    <p className={NOTICE_TEXT}>
-      For maximum focus, we recommend adding{" "}
-      <span className="font-semibold">no more than 3 daily activities</span> — enough
-      to make real progress without spreading yourself too thin. Quality over quantity.
-    </p>
-  </div>
-);
-
-// ─── Single activity row ──────────────────────────────────────────────────────
+// ─── Activity row ─────────────────────────────────────────────────────────────
 const ActivityRow = ({ activity, color, onToggle }) => {
   const [optimistic, setOptimistic] = useState(activity.completed);
   useEffect(() => { setOptimistic(activity.completed); }, [activity.completed]);
@@ -122,14 +103,10 @@ const ActivityRow = ({ activity, color, onToggle }) => {
   };
 
   return (
-    <div
-      onClick={handle}
-      className="flex items-center gap-3 py-2.5 cursor-pointer group select-none"
-    >
+    <div onClick={handle}
+      className="flex items-center gap-3 py-2.5 cursor-pointer group select-none">
       <div
-        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-          optimistic ? "" : "border-2"
-        }`}
+        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${optimistic ? "" : "border-2"}`}
         style={optimistic ? { backgroundColor: color } : { borderColor: color + "60" }}
       >
         {optimistic && <Check className="w-3 h-3 text-white" />}
@@ -145,13 +122,12 @@ const ActivityRow = ({ activity, color, onToggle }) => {
 
 // ─── Lock group card ──────────────────────────────────────────────────────────
 const LockGroup = ({ aspect, onCelebrate }) => {
-  const navigate     = useNavigate();
+  const navigate    = useNavigate();
   const [activities, setActivities] = useState(aspect.today_activities || []);
 
   const total     = activities.length;
   const completed = activities.filter(a => a.completed).length;
   const allDone   = total > 0 && completed === total;
-  const isDailyTasksLock = aspect.custom_name === "Daily Tasks" && aspect.is_forever;
 
   const handleToggle = async (activity, newValue) => {
     setActivities(prev =>
@@ -176,41 +152,26 @@ const LockGroup = ({ aspect, onCelebrate }) => {
 
   return (
     <div className={`${CARD} overflow-hidden mb-3`}>
-      {/* Color accent bar */}
       <div className={LOCK_ACCENT_BAR} style={{ backgroundColor: aspect.color }} />
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-3 pb-1">
-        <div
-          className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
-          style={{ backgroundColor: aspect.color + "20" }}
-        >
+        <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+          style={{ backgroundColor: aspect.color + "20" }}>
           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: aspect.color }} />
         </div>
-
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={TEXT.cardTitle}>{aspect.display_name}</span>
             {allDone && (
-              <span
-                className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: aspect.color }}
-              >
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
+                style={{ backgroundColor: aspect.color }}>
                 Locked in
-              </span>
-            )}
-            {isDailyTasksLock && (
-              <span className="text-xs text-indigo-400 font-medium bg-indigo-50 px-2 py-0.5 rounded-full">
-                Daily
               </span>
             )}
           </div>
           <div className={TEXT.caption + " mt-0.5"}>
-            {total > 0
-              ? `${completed}/${total} done today`
-              : isDailyTasksLock
-                ? "Add your tasks for today"
-                : "No actions set"}
+            {total > 0 ? `${completed}/${total} done today` : "No actions set"}
             {aspect.current_streak > 0 && (
               <span className="ml-2 text-orange-400 font-medium">
                 {aspect.current_streak}d streak
@@ -218,23 +179,18 @@ const LockGroup = ({ aspect, onCelebrate }) => {
             )}
           </div>
         </div>
-
-        <button
-          onClick={() => navigate(`/aspects/${aspect.id}`)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-        >
+        <button onClick={() => navigate(`/aspects/${aspect.id}`)}
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
           <ChevronRight className="w-4 h-4 text-gray-300" />
         </button>
       </div>
 
-      {/* Progress bar (only when there are activities) */}
+      {/* Progress bar */}
       {total > 0 && (
         <div className="px-4 py-1.5">
           <div className={PROGRESS_TRACK}>
-            <div
-              className={PROGRESS_FILL}
-              style={{ width: `${(completed / total) * 100}%`, backgroundColor: aspect.color }}
-            />
+            <div className={PROGRESS_FILL}
+              style={{ width: `${(completed / total) * 100}%`, backgroundColor: aspect.color }} />
           </div>
         </div>
       )}
@@ -242,24 +198,17 @@ const LockGroup = ({ aspect, onCelebrate }) => {
       {/* Activities */}
       <div className={`px-4 pb-3 ${DIVIDER}`}>
         {activities.length === 0 ? (
-          <div className="py-3">
-            {isDailyTasksLock && <ActivityNotice />}
-            <button
-              onClick={() => navigate(`/aspects/${aspect.id}`)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/50 transition-all text-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              {isDailyTasksLock ? "Add today's tasks" : "Set up daily actions"}
+          <div className="py-3 text-center">
+            <p className={TEXT.caption + " mb-2"}>No daily actions set up yet.</p>
+            <button onClick={() => navigate(`/aspects/${aspect.id}`)}
+              className="text-xs font-semibold transition-colors" style={{ color: aspect.color }}>
+              Set up daily actions →
             </button>
           </div>
         ) : (
           activities.map(activity => (
-            <ActivityRow
-              key={activity.id}
-              activity={activity}
-              color={aspect.color}
-              onToggle={handleToggle}
-            />
+            <ActivityRow key={activity.id} activity={activity}
+              color={aspect.color} onToggle={handleToggle} />
           ))
         )}
       </div>
@@ -297,60 +246,50 @@ const LocksSection = ({ onCelebrate }) => {
 
   if (!dashboard || dashboard.length === 0) {
     return (
-      <div className={`${CARD} p-6 mb-4 text-center`}>
-        <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-3">
-          <Layers className="w-7 h-7 text-indigo-300" />
+      <div className={`${CARD} p-8 mb-4 text-center`}>
+        <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-8 h-8 text-indigo-300" />
         </div>
-        <h3 className={TEXT.sectionTitle + " mb-1"}>No Locks yet</h3>
-        <p className={TEXT.caption + " mb-4 max-w-xs mx-auto"}>
-          Your Daily Tasks Lock is being set up. Refresh in a moment, or create your first sprint Lock now.
+        <h3 className={TEXT.sectionTitle + " mb-2"}>No Locks yet</h3>
+        <p className={TEXT.caption + " mb-6 max-w-xs mx-auto leading-relaxed"}>
+          Create your first Lock to start tracking your daily consistency.
+          Choose any area of your life — fitness, finances, a skill, anything.
         </p>
-        <button
-          onClick={() => navigate("/onboarding")}
-          className={`${BTN.primary} inline-flex items-center gap-2 px-5 py-2.5 text-sm`}
-        >
+        <button onClick={() => navigate("/onboarding")}
+          className={`${BTN.primary} inline-flex items-center gap-2 px-5 py-3 text-sm`}>
           <Plus className="w-4 h-4" />
-          Create a Lock
+          Create your first Lock
         </button>
       </div>
     );
   }
 
-  // Sort: Daily Tasks Lock always first, then others by creation order
-  const sorted = [...dashboard].sort((a, b) => {
-    if (a.custom_name === "Daily Tasks" && a.is_forever) return -1;
-    if (b.custom_name === "Daily Tasks" && b.is_forever) return 1;
-    return 0;
-  });
-
-  const lockedInCount = sorted.filter(a => a.today_locked_in).length;
-  const allLockedIn   = lockedInCount === sorted.length;
+  const lockedInCount = dashboard.filter(a => a.today_locked_in).length;
+  const allLockedIn   = lockedInCount === dashboard.length;
 
   return (
     <div className="mb-4">
-      {/* Section header */}
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className={TEXT.sectionTitle}>Today's Locks</h2>
           <p className={TEXT.caption + " mt-0.5"}>
             {allLockedIn
               ? "You're locked in across everything today"
-              : `${lockedInCount} of ${sorted.length} locked in`}
+              : `${lockedInCount} of ${dashboard.length} locked in`}
           </p>
         </div>
-        <Link to="/aspects" className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors">
+        <Link to="/aspects"
+          className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors">
           See all
         </Link>
       </div>
 
-      {sorted.map(aspect => (
+      {dashboard.map(aspect => (
         <LockGroup key={aspect.id} aspect={aspect} onCelebrate={onCelebrate} />
       ))}
 
-      <button
-        onClick={() => navigate("/onboarding")}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/50 transition-all text-sm font-medium mt-1"
-      >
+      <button onClick={() => navigate("/onboarding")}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/50 transition-all text-sm font-medium mt-1">
         <Plus className="w-4 h-4" />
         Add a Lock
       </button>
@@ -363,11 +302,8 @@ export default function HomePage() {
   const [quote, setQuote]               = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(true);
   const [quoteError, setQuoteError]     = useState(null);
-
-  const [streakData, setStreakData]       = useState(null);
+  const [streakData, setStreakData]     = useState(null);
   const [streakLoading, setStreakLoading] = useState(true);
-
-  const [monthlyKey, setMonthlyKey]           = useState(0);
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationLock, setCelebrationLock] = useState("");
   const [lastCelebration, setLastCelebration] = useState(null);
@@ -399,11 +335,9 @@ export default function HomePage() {
 
   useEffect(() => { fetchQuote(); fetchStreak(); }, []);
 
+  // Refresh streak every minute in case of day change
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStreak();
-      setMonthlyKey(k => k + 1);
-    }, 60000);
+    const interval = setInterval(fetchStreak, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -441,33 +375,8 @@ export default function HomePage() {
           </div>
 
           <LevelStrip streakData={streakData} loading={streakLoading} />
-
           <QuoteCard quote={quote} loading={quoteLoading} error={quoteError} />
-
           <LocksSection onCelebrate={handleCelebrate} />
-
-          {/* Analytics accordion */}
-          <details className={`${CARD} group`}>
-            <summary className="flex items-center gap-3 p-4 cursor-pointer list-none hover:bg-gray-50 rounded-2xl transition-colors">
-              <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-indigo-500" />
-              </div>
-              <div>
-                <div className={TEXT.cardTitle}>Quick Analytics</div>
-                <div className={TEXT.caption}>This month at a glance</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 ml-auto transition-transform duration-300 group-open:rotate-90" />
-            </summary>
-            <div className="px-4 pb-4 border-t border-gray-50 pt-3">
-              <Link
-                to="/analytics"
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
-              >
-                <TrendingUp className="w-4 h-4" />
-                View full analytics
-              </Link>
-            </div>
-          </details>
 
         </div>
       </div>
@@ -478,10 +387,6 @@ export default function HomePage() {
         streakData={streakData}
         onShare={handleShare}
       />
-
-      <style>{`
-        details[open] summary .group-open\\:rotate-90 { transform: rotate(90deg); }
-      `}</style>
     </>
   );
 }

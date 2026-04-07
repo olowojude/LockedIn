@@ -40,15 +40,15 @@ class LifeAspect(models.Model):
     """
 
     ASPECT_TYPES = [
-        ('fitness',       '💪 Body & Fitness'),
-        ('finance',       '💰 Financial Growth'),
-        ('skills',        '🎓 Skill Development'),
-        ('health',        '🧘 Health & Wellness'),
-        ('relationships', '❤️ Relationships'),
-        ('career',        '💼 Career Progress'),
-        ('mindfulness',   '🧠 Mindfulness'),
-        ('creativity',    '🎨 Creative Pursuits'),
-        ('custom',        '✨ Custom Goal'),
+        ('fitness',       'Body & Fitness'),
+        ('finance',       'Financial Growth'),
+        ('skills',        'Skill Development'),
+        ('health',        'Health & Wellness'),
+        ('relationships', 'Relationships'),
+        ('career',        'Career Progress'),
+        ('mindfulness',   'Mindfulness'),
+        ('creativity',    'Creative Pursuits'),
+        ('custom',        'Custom Goal'),
     ]
 
     STATUS_CHOICES = [

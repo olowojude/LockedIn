@@ -1,0 +1,74 @@
+# ===========================
+# Node / npm
+# ===========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+package-lock.json.bak
+
+# Build output
+dist/
+dist-ssr/
+build/
+out/
+
+# Vite
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Environment variables — NEVER commit these
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Testing
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+playwright-report/
+test-results/
+
+# Cache
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# VSCode (keep or remove based on team preference)
+.vscode/
+!.vscode/extensions.json
+
+# JetBrains
+.idea/
+*.iml
+
+# Logs
+logs/
+*.log
+
+# Optional: Storybook build outputs
+storybook-static/
+
+# Vercel
+.vercel
+
+# Temporary files
+*.tmp
+*.temp

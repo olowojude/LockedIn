@@ -1,15 +1,14 @@
-// src/pages/Onboarding.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Trash2,
   Dumbbell, DollarSign, BookOpen, Heart,
-  Users, Briefcase, Brain, Palette, Sparkles, Infinity,
+  Users, Briefcase, Brain, Palette, Sparkles, Infinity, Lock,
 } from "lucide-react";
 import { useAspects } from "../../utils/useAspects";
 import AdvisoryModal from "../components/AdvisoryModal";
+import api from "../../utils/api";
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
 const ASPECT_OPTIONS = [
   { type: "fitness",       label: "Body & Fitness",    icon: Dumbbell,   color: "#FF6B6B", description: "Workouts, nutrition, movement" },
   { type: "finance",       label: "Financial Growth",  icon: DollarSign, color: "#10B981", description: "Savings, budgeting, investing" },
@@ -22,11 +21,10 @@ const ASPECT_OPTIONS = [
   { type: "custom",        label: "Custom Goal",       icon: Sparkles,   color: "#6366F1", description: "Define your own path" },
 ];
 
-// Duration options — null days = forever
 const DURATION_OPTIONS = [
-  { days: 30,   label: "30 Days",  sub: "A solid start",         icon: null      },
-  { days: 60,   label: "60 Days",  sub: "Build real habits",     icon: null      },
-  { days: 90,   label: "90 Days",  sub: "Transform your life",   icon: null      },
+  { days: 30,   label: "30 Days",  sub: "A solid start",               icon: null     },
+  { days: 60,   label: "60 Days",  sub: "Build real habits",           icon: null     },
+  { days: 90,   label: "90 Days",  sub: "Transform your life",         icon: null     },
   { days: null, label: "Forever",  sub: "No end date, just consistency", icon: Infinity },
 ];
 
@@ -44,7 +42,6 @@ const COLORS = [
   "#6366F1", "#84CC16", "#EF4444", "#14B8A6",
 ];
 
-// ─── Step bar ─────────────────────────────────────────────────────────────────
 const StepBar = ({ current, total }) => (
   <div className="flex items-center gap-1.5 mb-8">
     {Array.from({ length: total }, (_, i) => (
@@ -55,29 +52,43 @@ const StepBar = ({ current, total }) => (
   </div>
 );
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Onboarding() {
-  const navigate       = useNavigate();
+  const navigate         = useNavigate();
   const { createAspect } = useAspects();
 
-  const [step, setStep]         = useState(0);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState(null);
+  const [step, setStep]               = useState(0);
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState(null);
   const [showAdvisory, setShowAdvisory] = useState(false);
+  const [takenTypes, setTakenTypes]   = useState([]);   // already-created aspect types
+  const [loadingTypes, setLoadingTypes] = useState(true);
 
-  // Form state
   const [selectedType, setSelectedType] = useState(null);
   const [customName, setCustomName]     = useState("");
-  const [duration, setDuration]         = useState(30);     // null = forever
+  const [duration, setDuration]         = useState(30);
   const [why, setWhy]                   = useState("");
   const [activities, setActivities]     = useState([""]);
   const [color, setColor]               = useState("#6366F1");
 
-  const selected     = ASPECT_OPTIONS.find(a => a.type === selectedType);
-  const isForever    = duration === null;
-  const filledCount  = activities.filter(a => a.trim()).length;
+  // Fetch existing locks on mount so we know which types are already taken
+  useEffect(() => {
+    api.get('/aspects/')
+      .then(res => {
+        const types = res.data
+          .filter(a => a.aspect_type !== 'custom')
+          .map(a => a.aspect_type);
+        setTakenTypes(types);
+      })
+      .catch(() => {}) // non-fatal — worst case user sees error at submit
+      .finally(() => setLoadingTypes(false));
+  }, []);
+
+  const selected    = ASPECT_OPTIONS.find(a => a.type === selectedType);
+  const isForever   = duration === null;
+  const filledCount = activities.filter(a => a.trim()).length;
 
   const handleSelectType = (type) => {
+    if (type !== 'custom' && takenTypes.includes(type)) return; // blocked
     setSelectedType(type);
     const opt = ASPECT_OPTIONS.find(a => a.type === type);
     if (opt) setColor(opt.color);
@@ -96,7 +107,7 @@ export default function Onboarding() {
 
   const canProceed = () => {
     if (step === 0) return !!selectedType && (selectedType !== "custom" || customName.trim());
-    if (step === 1) return duration !== undefined; // null (forever) is valid
+    if (step === 1) return duration !== undefined;
     if (step === 2) return true;
     if (step === 3) return filledCount >= 1;
     return true;
@@ -120,7 +131,7 @@ export default function Onboarding() {
       aspect_type:        selectedType,
       custom_name:        selectedType === "custom" ? customName.trim() : null,
       start_date:         fmt(today),
-      target_date:        targetDate,   // null for forever
+      target_date:        targetDate,
       why_statement:      why.trim(),
       color,
       icon:               "target",
@@ -128,11 +139,19 @@ export default function Onboarding() {
     });
 
     setSaving(false);
-    if (result.ok) navigate("/aspects", { replace: true });
-    else setError(result.error);
+    if (result.ok) {
+      navigate("/aspects", { replace: true });
+    } else {
+      // Backend sent duplicate_lock error — nudge toward custom
+      if (result.error?.includes('already have')) {
+        setStep(0);
+        setSelectedType('custom');
+        setColor('#6366F1');
+      }
+      setError(result.error);
+    }
   };
 
-  // End date label shown in step 1 preview
   const endDateLabel = isForever
     ? "No end date — just keep going"
     : (() => {
@@ -146,7 +165,6 @@ export default function Onboarding() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
 
-          {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">
               Locked<span className="text-indigo-600">In</span>
@@ -163,24 +181,61 @@ export default function Onboarding() {
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">What do you want to lock in on?</h2>
                 <p className="text-gray-400 text-sm mb-6">Pick the area of your life you want to transform.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {ASPECT_OPTIONS.map(({ type, label, icon: Icon, color: c, description }) => (
-                    <button key={type} onClick={() => handleSelectType(type)}
-                      className={`flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition-all duration-200 ${
-                        selectedType === type ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                      }`}>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: c + "22" }}>
-                        <Icon className="w-5 h-5" style={{ color: c }} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-gray-800 text-sm">{label}</div>
-                        <div className="text-gray-400 text-xs truncate">{description}</div>
-                      </div>
-                      {selectedType === type && <Check className="w-4 h-4 text-indigo-600 ml-auto flex-shrink-0" />}
-                    </button>
-                  ))}
-                </div>
+
+                {loadingTypes ? (
+                  <div className="text-center py-8 text-gray-400 text-sm">Loading…</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {ASPECT_OPTIONS.map(({ type, label, icon: Icon, color: c, description }) => {
+                      const isTaken = type !== 'custom' && takenTypes.includes(type);
+                      return (
+                        <div key={type}>
+                          <button
+                            onClick={() => handleSelectType(type)}
+                            disabled={isTaken}
+                            className={`w-full flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition-all duration-200 ${
+                              isTaken
+                                ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                : selectedType === type
+                                  ? "border-indigo-500 bg-indigo-50"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            }`}>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                              style={{ backgroundColor: c + "22" }}>
+                              {isTaken
+                                ? <Lock className="w-4 h-4 text-gray-400" />
+                                : <Icon className="w-5 h-5" style={{ color: c }} />
+                              }
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-gray-800 text-sm">{label}</div>
+                              <div className="text-gray-400 text-xs truncate">
+                                {isTaken ? "Already created" : description}
+                              </div>
+                            </div>
+                            {selectedType === type && !isTaken && (
+                              <Check className="w-4 h-4 text-indigo-600 ml-auto flex-shrink-0" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Prompt to use custom when a taken type is selected (edge case) */}
+                {selectedType && takenTypes.includes(selectedType) && selectedType !== 'custom' && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+                    You already have a <strong>{selected?.label}</strong> Lock.{" "}
+                    <button
+                      className="underline font-semibold"
+                      onClick={() => { setSelectedType('custom'); setColor('#6366F1'); }}>
+                      Create a custom Lock
+                    </button>{" "}
+                    with a different name instead.
+                  </div>
+                )}
+
                 {selectedType === "custom" && (
                   <div className="mt-4">
                     <input type="text" placeholder="Name your Lock…"
@@ -198,7 +253,7 @@ export default function Onboarding() {
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">How long is your sprint?</h2>
                 <p className="text-gray-400 text-sm mb-6">
-                  Choose a fixed period to build momentum, or go forever if you want this to be a permanent habit.
+                  Choose a fixed period to build momentum, or go forever for a permanent habit.
                 </p>
                 <div className="space-y-3">
                   {DURATION_OPTIONS.map(({ days, label, sub, icon: DIcon }) => (
@@ -221,7 +276,6 @@ export default function Onboarding() {
                     </button>
                   ))}
                 </div>
-
                 {selected && (
                   <div className="mt-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
                     <div className="text-xs text-gray-400">{isForever ? "This Lock" : "Sprint ends"}</div>
@@ -258,7 +312,6 @@ export default function Onboarding() {
                     how many works for you. You can change these any time inside your Lock.
                   </p>
                 </div>
-
                 <div className="space-y-3 mb-4">
                   {activities.map((act, i) => (
                     <div key={i} className="flex items-center gap-2">
@@ -281,13 +334,10 @@ export default function Onboarding() {
                     </div>
                   ))}
                 </div>
-
                 <button onClick={requestAddActivity}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all text-sm font-medium">
-                  <Plus className="w-4 h-4" />
-                  Add another action
+                  <Plus className="w-4 h-4" /> Add another action
                 </button>
-
                 {filledCount > 3 && (
                   <p className="text-xs text-gray-400 text-center mt-3">
                     {filledCount} actions — make sure each one truly moves the needle.
@@ -301,7 +351,6 @@ export default function Onboarding() {
               <div>
                 <h2 className="text-xl font-bold text-gray-800 mb-1">Make it yours</h2>
                 <p className="text-gray-400 text-sm mb-6">Pick a colour for your Lock card.</p>
-
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-3">Lock colour</label>
                   <div className="flex flex-wrap gap-3">
@@ -314,8 +363,6 @@ export default function Onboarding() {
                     ))}
                   </div>
                 </div>
-
-                {/* Preview */}
                 <div className="rounded-2xl p-4 border-2 transition-all duration-300"
                   style={{ borderColor: color + "60", backgroundColor: color + "10" }}>
                   <div className="flex items-center gap-3 mb-3">
@@ -347,7 +394,6 @@ export default function Onboarding() {
                     </p>
                   )}
                 </div>
-
                 {error && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>
                 )}
@@ -367,7 +413,6 @@ export default function Onboarding() {
                   Cancel
                 </button>
               )}
-
               {step < STEPS.length - 1 ? (
                 <button onClick={() => setStep(s => s + 1)} disabled={!canProceed()}
                   className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-xl transition-all">

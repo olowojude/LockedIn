@@ -553,6 +553,19 @@ def aspect_list(request):
     elif request.method == 'POST':
         serializer = LifeAspectSerializer(data=request.data)
         if serializer.is_valid():
+            aspect_type = request.data.get('aspect_type')
+            
+            # Block duplicate non-custom locks
+            if aspect_type != 'custom':
+                if LifeAspect.objects.filter(user=request.user, aspect_type=aspect_type).exists():
+                    return Response(
+                        {
+                            'error': 'duplicate_lock',
+                            'message': f"You already have a {dict(LifeAspect.ASPECT_TYPES).get(aspect_type, aspect_type)} Lock. Create a Custom Lock with your own name instead.",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
             aspect = serializer.save(user=request.user)
             check_and_unlock_milestones(aspect)
             return Response(LifeAspectSerializer(aspect).data, status=status.HTTP_201_CREATED)

@@ -94,6 +94,13 @@ class LifeAspect(models.Model):
             models.Index(fields=['user', 'status']),
             models.Index(fields=['user', 'is_active']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'aspect_type'],
+                condition=~models.Q(aspect_type='custom'),
+                name='unique_user_aspect_type'
+            )
+        ]
 
     def __str__(self):
         return f"{self.user.username}: {self.get_display_name()}"

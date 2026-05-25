@@ -38,7 +38,7 @@ def serve_react(request, *args, **kwargs):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('health/', health_check),
+    path('health', health_check),
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     path('api/auth/register/', views.register,               name='register'),
@@ -85,5 +85,5 @@ urlpatterns = [
     # ── React catch-all — MUST be last ────────────────────────────────────────
     # Any URL that doesn't match an API route gets served index.html,
     # letting React Router take over client-side.
-    re_path(r'^(?!api/|admin/|health/).*$', serve_react, name='react-app'),
+    re_path(r'^(?!api/|admin/|health).*$', serve_react, name='react-app'),
 ]

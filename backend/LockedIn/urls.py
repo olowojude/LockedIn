@@ -38,7 +38,8 @@ def serve_react(request, *args, **kwargs):
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('health', health_check),
+    path('health/', health_check),
+    path('health',  health_check),
 
     # ── Auth ──────────────────────────────────────────────────────────────────
     path('api/auth/register/', views.register,               name='register'),

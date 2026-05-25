@@ -21,7 +21,6 @@ const getApiUrl = () => {
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: getApiUrl(),
-  timeout: 30000, // 30 seconds - enough for Render cold start
   headers: {
     'Content-Type': 'application/json',
   },
@@ -148,4 +147,13 @@ export const isApiConfigured = () => {
 
 // Log API configuration on load (only in development)
 if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+}
+
+// Ping the server every 10 minutes to prevent Render cold starts
+if (typeof window !== 'undefined') {
+  const BACKEND_URL = getApiUrl().replace('/api', '');
+  setInterval(() => {
+    fetch(`${BACKEND_URL}/health/`)
+      .catch(() => {}); // silent — we don't care about the response
+  }, 30 * 60 * 1000); // every 10 minutes
 }

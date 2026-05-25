@@ -28,9 +28,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -143,11 +143,22 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-CORS_ALLOWED_ORIGINS = config(
+# Base origins always allowed
+_CORS_BASE = [
+    'https://lockedin-tracker.vercel.app',
+    'https://staylockedin.vercel.app',   # your other Vercel URL
+    'http://localhost:5173',
+    'http://localhost:3000',
+]
+
+# Merge with anything set in the environment variable
+_CORS_ENV = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://localhost:3000',
+    default='',
     cast=Csv()
 )
+
+CORS_ALLOWED_ORIGINS = list(set(_CORS_BASE + [u for u in _CORS_ENV if u]))
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
@@ -160,15 +171,26 @@ CORS_ALLOW_HEADERS = [
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'ignore_health': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': lambda record: '/health' not in record.getMessage(),
+        },
+    },
     'formatters': {
         'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'},
     },
     'handlers': {
-        'console': {'level': 'INFO', 'class': 'logging.StreamHandler', 'formatter': 'verbose'},
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'filters': ['ignore_health'],
+        },
     },
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': True},
-        'api': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'api':    {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
     },
 }
 

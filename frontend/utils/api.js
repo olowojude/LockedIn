@@ -155,5 +155,5 @@ if (typeof window !== 'undefined') {
   setInterval(() => {
     fetch(`${BACKEND_URL}/health/`)
       .catch(() => {}); // silent — we don't care about the response
-  }, 30 * 60 * 1000); // every 10 minutes
+  }, 10 * 60 * 1000); // every 10 minutes
 }

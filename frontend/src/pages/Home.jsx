@@ -199,10 +199,10 @@ const LockGroup = ({ aspect, onCelebrate }) => {
       <div className={`px-4 pb-3 ${DIVIDER}`}>
         {activities.length === 0 ? (
           <div className="py-3 text-center">
-            <p className={TEXT.caption + " mb-2"}>No daily actions set up yet.</p>
+            <p className={TEXT.caption + " mb-2"}>No daily actions set up for today.</p>
             <button onClick={() => navigate(`/aspects/${aspect.id}`)}
               className="text-xs font-semibold transition-colors" style={{ color: aspect.color }}>
-              Set up daily actions →
+              Edit or Set up daily actions for today →
             </button>
           </div>
         ) : (

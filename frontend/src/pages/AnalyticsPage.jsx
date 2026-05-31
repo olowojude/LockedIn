@@ -1,14 +1,25 @@
-// src/pages/AnalyticsPage.jsx
 import React, { useState, useEffect } from "react";
 import {
   BarChart3, Calendar, ChevronLeft, ChevronRight,
-  TrendingUp, Target, Award, RefreshCw,
+  TrendingUp, Target, Award, RefreshCw, Check, X,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import api from "../../utils/api";
-import {
-  PAGE, CONTAINER, CARD, TEXT, BTN, STATUS,
-} from "../../utils/design";
+import { PAGE, CONTAINER, CARD, TEXT, BTN, STATUS } from "../../utils/design";
+
+// ─── Unified day colour system ────────────────────────────────────────────────
+// green = locked in, orange = partial, grey = nothing
+const DAY_COLORS = {
+  locked:  { bg: '#22c55e', text: '#fff',     ring: '#16a34a' },
+  partial: { bg: '#f97316', text: '#fff',     ring: '#ea6f10' },
+  none:    { bg: '#f3f4f6', text: '#9ca3af',  ring: 'transparent' },
+};
+
+function getDayStyle(day) {
+  if (day.is_locked_in) return DAY_COLORS.locked;
+  if (day.is_partial)   return DAY_COLORS.partial;
+  return DAY_COLORS.none;
+}
 
 // ─── Tab ─────────────────────────────────────────────────────────────────────
 const Tab = ({ label, icon: Icon, active, onClick }) => (
@@ -27,9 +38,9 @@ const Tab = ({ label, icon: Icon, active, onClick }) => (
 const StatCard = ({ value, label, colorKey = "indigo" }) => {
   const s = STATUS[colorKey];
   return (
-    <div className={`${s.bg} border ${s.border} rounded-2xl p-4 text-center`}>
-      <div className={`text-2xl font-black ${s.text}`}>{value}</div>
-      <div className={TEXT.caption + " mt-0.5"}>{label}</div>
+    <div className={`${s?.bg || 'bg-gray-50'} border ${s?.border || 'border-gray-200'} rounded-2xl p-4 text-center`}>
+      <div className={`text-2xl font-black ${s?.text || 'text-gray-800'}`}>{value}</div>
+      <div className="text-xs text-gray-400 mt-0.5">{label}</div>
     </div>
   );
 };
@@ -37,45 +48,190 @@ const StatCard = ({ value, label, colorKey = "indigo" }) => {
 // ─── Nav arrows ──────────────────────────────────────────────────────────────
 const NavArrow = ({ onClick, disabled, dir }) => (
   <button onClick={onClick} disabled={disabled}
-    className={`${BTN.icon} disabled:opacity-30 disabled:cursor-not-allowed`}>
+    className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
     {dir === "prev"
-      ? <ChevronLeft className="w-4 h-4 text-gray-500" />
+      ? <ChevronLeft  className="w-4 h-4 text-gray-500" />
       : <ChevronRight className="w-4 h-4 text-gray-500" />}
   </button>
 );
 
+// ─── Calendar grid (shared between monthly + drill-down) ──────────────────────
+const CalendarGrid = ({ year, month, dailyData, selectedDay, onDayClick }) => {
+  const today       = new Date().toDateString();
+  const firstDayCol = new Date(year, month - 1, 1).getDay();
+
+  return (
+    <>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {["S","M","T","W","T","F","S"].map((d, i) => (
+          <div key={i} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstDayCol }, (_, i) => <div key={`e-${i}`} />)}
+        {dailyData?.map(day => {
+          const style    = getDayStyle(day);
+          const isToday  = new Date(day.date + 'T12:00:00').toDateString() === today;
+          const isSelected = selectedDay?.day === day.day;
+          const clickable  = day.is_locked_in || day.is_partial || day.has_activity;
+
+          return (
+            <div key={day.day}
+              onClick={() => clickable && onDayClick && onDayClick(day)}
+              title={
+                day.is_locked_in ? 'Locked in' :
+                day.is_partial   ? 'Partial' :
+                day.has_activity ? 'No activities' : ''
+              }
+              className={`h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-150 ${
+                clickable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+              } ${isToday   ? 'ring-2 ring-blue-400 ring-offset-1' : ''} ${
+                isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+              }`}
+              style={{ backgroundColor: style.bg, color: style.text }}>
+              {day.day}
+            </div>
+          );
+        })}
+      </div>
+      {/* Unified legend */}
+      <div className="flex items-center gap-4 mt-3 flex-wrap">
+        {[
+          { color: DAY_COLORS.locked.bg,  label: 'Locked in' },
+          { color: DAY_COLORS.partial.bg, label: 'Partial'   },
+          { color: DAY_COLORS.none.bg,    label: 'None', border: true },
+        ].map(({ color, label, border }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded"
+              style={{ backgroundColor: color, border: border ? '1px solid #e5e7eb' : 'none' }} />
+            <span className="text-xs text-gray-400">{label}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+};
+
+// ─── Day detail panel ─────────────────────────────────────────────────────────
+const DayDetail = ({ day, onClose }) => {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/daily-tasks/?date=${day.date}`)
+      .then(res => setData(res.data))
+      .catch(() => setData({ by_aspect: [], total_tasks: 0, completed_tasks: 0 }))
+      .finally(() => setLoading(false));
+  }, [day.date]);
+
+  const label = new Date(day.date + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  });
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div>
+          <div className="font-bold text-gray-800 text-sm">{label}</div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: getDayStyle(day).bg }} />
+            <span className="text-xs text-gray-400">
+              {day.is_locked_in ? 'Locked in' : day.is_partial ? 'Partial' : 'No activity'}
+            </span>
+          </div>
+        </div>
+        <button onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="p-4">
+        {loading ? (
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : !data?.by_aspect?.length ? (
+          <p className="text-center text-sm text-gray-400 py-3">No activities recorded.</p>
+        ) : (
+          <div className="space-y-4">
+            {data.by_aspect.map(group => {
+              const allDone = group.activities.every(a => a.completed);
+              return (
+                <div key={group.aspect_id}>
+                  {/* Lock header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: group.color }} />
+                    <span className="text-xs font-semibold text-gray-600">{group.aspect_name}</span>
+                    {allDone && (
+                      <span className="ml-auto text-xs text-green-600 font-semibold flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Locked in
+                      </span>
+                    )}
+                  </div>
+                  {/* Activities */}
+                  <div className="space-y-1.5 pl-4">
+                    {group.activities.map(act => (
+                      <div key={act.id}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-xl text-sm ${
+                          act.completed
+                            ? 'bg-green-50 border border-green-100'
+                            : 'bg-gray-50 border border-gray-100'
+                        }`}>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          act.completed ? 'bg-green-500' : 'border-2 border-gray-300'
+                        }`}>
+                          {act.completed && <Check className="w-2.5 h-2.5 text-white" />}
+                        </div>
+                        <span className={act.completed ? 'text-gray-400 line-through' : 'text-gray-700'}>
+                          {act.title}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Summary */}
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+              <span>{data.completed_tasks}/{data.total_tasks} activities completed</span>
+              {data.is_locked_in && (
+                <span className="text-green-600 font-semibold flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Fully locked in
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Monthly view ─────────────────────────────────────────────────────────────
 const MonthlyView = () => {
-  const [data, setData]             = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError]           = useState(null);
+  const [data, setData]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [error, setError]             = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [dayTasks, setDayTasks]     = useState(null);
-  const [dayLoading, setDayLoading] = useState(false);
 
   const load = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const m = currentDate.getMonth() + 1;
-      const y = currentDate.getFullYear();
+      const m   = currentDate.getMonth() + 1;
+      const y   = currentDate.getFullYear();
       const res = await api.get(`/monthly-overview/?month=${m}&year=${y}`);
       setData(res.data);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load monthly data");
     } finally { setLoading(false); setRefreshing(false); }
-  };
-
-  const fetchDay = async (dateStr) => {
-    setDayLoading(true);
-    setDayTasks(null);
-    try {
-      const res = await api.get(`/daily-tasks/?date=${dateStr}`);
-      setDayTasks(res.data);
-    } catch { setDayTasks({ tasks: [] }); }
-    finally { setDayLoading(false); }
   };
 
   useEffect(() => { load(); }, [currentDate]);
@@ -88,22 +244,8 @@ const MonthlyView = () => {
   };
 
   const handleDayClick = (day) => {
-    if (day.total_tasks === 0) return;
-    setSelectedDay(day);
-    fetchDay(day.date);
+    setSelectedDay(prev => prev?.day === day.day ? null : day);
   };
-
-  const cellColor = (day) => {
-    if (day.total_tasks === 0)          return "bg-gray-100 text-gray-300";
-    if (day.is_locked_in)               return "text-white font-bold";
-    if (day.completion_rate >= 75)      return "bg-green-200 text-green-800";
-    if (day.completion_rate >= 50)      return "bg-yellow-200 text-yellow-800";
-    if (day.completion_rate >= 25)      return "bg-orange-200 text-orange-800";
-    return "bg-red-100 text-red-700";
-  };
-
-  const isToday = (day) =>
-    new Date(day.date).toDateString() === new Date().toDateString();
 
   if (loading) return (
     <div className="animate-pulse space-y-4">
@@ -127,114 +269,47 @@ const MonthlyView = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <NavArrow onClick={() => nav("prev")} dir="prev" />
-          <span className={TEXT.sectionTitle + " min-w-[140px] text-center"}>
+          <span className="font-bold text-gray-800 text-sm min-w-[140px] text-center">
             {data?.month_name} {data?.year}
           </span>
           <NavArrow onClick={() => nav("next")} dir="next" />
         </div>
-        <button onClick={() => load(true)} disabled={refreshing} className={BTN.icon}>
+        <button onClick={() => load(true)} disabled={refreshing}
+          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
           <RefreshCw className={`w-4 h-4 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard value={data?.statistics?.total_locked_in_days || 0} label="Locked-in days" colorKey="green" />
-        <StatCard value={`${data?.statistics?.locked_in_percentage || 0}%`} label="Success rate" colorKey="indigo" />
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black text-green-600">
+            {data?.statistics?.total_locked_in_days || 0}
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">Locked-in days</div>
+        </div>
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black text-indigo-600">
+            {data?.statistics?.locked_in_percentage || 0}%
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">Success rate</div>
+        </div>
       </div>
 
       {/* Calendar */}
-      <div className={`${CARD} p-4`}>
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {["S","M","T","W","T","F","S"].map((d, i) => (
-            <div key={i} className={TEXT.caption + " text-center py-1"}>{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: new Date(data.year, data.month - 1, 1).getDay() }, (_, i) => (
-            <div key={`e-${i}`} />
-          ))}
-          {data?.daily_data?.map(day => (
-            <div key={day.day}
-              onClick={() => handleDayClick(day)}
-              title={day.total_tasks > 0 ? `${day.completed_tasks}/${day.total_tasks} tasks` : "No tasks"}
-              className={`h-8 rounded-lg flex items-center justify-center text-xs transition-all duration-150 ${cellColor(day)} ${
-                day.total_tasks > 0 ? "cursor-pointer hover:scale-110 relative" : "cursor-default"
-              } ${isToday(day) ? "ring-2 ring-blue-400 ring-offset-1" : ""} ${
-                selectedDay?.day === day.day ? "ring-2 ring-indigo-500 ring-offset-1" : ""
-              }`}
-              style={day.is_locked_in ? { backgroundColor: "#10B981" } : {}}
-            >
-              {day.day}
-            </div>
-          ))}
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-3 mt-3">
-          {[
-            { cls: "bg-gray-100", label: "None" },
-            { cls: "bg-red-100",    label: "Started" },
-            { cls: "bg-yellow-200", label: "Halfway" },
-            { cls: "bg-green-200",  label: "Almost" },
-            { cls: "bg-green-500",  label: "Locked in" },
-          ].map(({ cls, label }) => (
-            <div key={label} className="flex items-center gap-1">
-              <div className={`w-3 h-3 rounded ${cls}`} />
-              <span className={TEXT.caption}>{label}</span>
-            </div>
-          ))}
-        </div>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <CalendarGrid
+          year={data?.year}
+          month={data?.month}
+          dailyData={data?.daily_data}
+          selectedDay={selectedDay}
+          onDayClick={handleDayClick}
+        />
       </div>
 
       {/* Day detail */}
       {selectedDay && (
-        <div className={CARD}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div>
-              <div className={TEXT.cardTitle}>
-                {new Date(selectedDay.date).toLocaleDateString("en-US", {
-                  weekday: "long", month: "long", day: "numeric",
-                })}
-              </div>
-              <div className={TEXT.caption + " mt-0.5"}>
-                {selectedDay.completed_tasks}/{selectedDay.total_tasks} completed
-                {selectedDay.is_locked_in && (
-                  <span className="ml-2 text-green-600 font-semibold">Locked in</span>
-                )}
-              </div>
-            </div>
-            <button onClick={() => setSelectedDay(null)} className={BTN.icon}>
-              <ChevronRight className="w-4 h-4 text-gray-400 rotate-90" />
-            </button>
-          </div>
-          <div className="p-4">
-            {dayLoading ? (
-              <div className="space-y-2">
-                {[1,2,3].map(i => <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />)}
-              </div>
-            ) : dayTasks?.tasks?.length > 0 ? (
-              <div className="space-y-2">
-                {dayTasks.tasks.map((task, i) => (
-                  <div key={i} className={`flex items-center gap-3 p-2.5 rounded-xl ${
-                    task.completed ? "bg-green-50 border border-green-200/60" : "bg-gray-50 border border-gray-200/60"
-                  }`}>
-                    <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      task.completed ? "bg-green-500" : "border-2 border-gray-300"
-                    }`}>
-                      {task.completed && <span className="text-white text-xs leading-none">✓</span>}
-                    </div>
-                    <span className={`text-sm ${task.completed ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                      {task.title}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={TEXT.caption + " text-center py-4"}>No tasks recorded for this day.</p>
-            )}
-          </div>
-        </div>
+        <DayDetail day={selectedDay} onClose={() => setSelectedDay(null)} />
       )}
     </div>
   );
@@ -242,14 +317,15 @@ const MonthlyView = () => {
 
 // ─── Yearly view ─────────────────────────────────────────────────────────────
 const YearlyView = () => {
-  const [data, setData]             = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError]           = useState(null);
-  const [year, setYear]             = useState(new Date().getFullYear());
-  const [selMonth, setSelMonth]     = useState(null);
-  const [monthData, setMonthData]   = useState(null);
+  const [data, setData]                 = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [error, setError]               = useState(null);
+  const [year, setYear]                 = useState(new Date().getFullYear());
+  const [selMonth, setSelMonth]         = useState(null);
+  const [monthData, setMonthData]       = useState(null);
   const [monthLoading, setMonthLoading] = useState(false);
+  const [selectedDay, setSelectedDay]   = useState(null);
 
   const load = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true); else setLoading(true);
@@ -264,6 +340,7 @@ const YearlyView = () => {
 
   const loadMonth = async (m) => {
     setMonthLoading(true);
+    setSelectedDay(null);
     try {
       const res = await api.get(`/monthly-overview/?month=${m}&year=${year}`);
       setMonthData(res.data);
@@ -273,25 +350,25 @@ const YearlyView = () => {
 
   useEffect(() => { load(); }, [year]);
   useEffect(() => {
-    if (selMonth) loadMonth(selMonth); else setMonthData(null);
+    if (selMonth) loadMonth(selMonth);
+    else { setMonthData(null); setSelectedDay(null); }
   }, [selMonth, year]);
 
-  const monthColor = (locked, total) => {
-    const pct = (locked / total) * 100;
-    if (pct >= 80) return "#10B981";
-    if (pct >= 60) return "#3B82F6";
-    if (pct >= 40) return "#EAB308";
-    if (pct >= 20) return "#F97316";
-    if (pct > 0)   return "#EF4444";
-    return "#E5E7EB";
+  // Month tile colour based on locked-in percentage
+  const monthTileColor = (pct) => {
+    if (pct >= 80) return { bg: '#22c55e22', border: '#22c55e', text: '#16a34a' };
+    if (pct >= 60) return { bg: '#f9731622', border: '#f97316', text: '#ea580c' };
+    if (pct >= 30) return { bg: '#eab30822', border: '#eab308', text: '#ca8a04' };
+    if (pct >  0)  return { bg: '#ef444422', border: '#ef4444', text: '#dc2626' };
+    return           { bg: '#f3f4f6',     border: '#e5e7eb', text: '#9ca3af' };
   };
 
   const stats = (() => {
     if (!data) return null;
-    const s = data.monthly_stats;
+    const s           = data.monthly_stats;
     const totalLocked = s.reduce((a, m) => a + m.locked_in_days, 0);
     const totalDays   = s.reduce((a, m) => a + m.days_in_month, 0);
-    const best        = s.reduce((b, m) => m.locked_in_percentage > b.locked_in_percentage ? m : b);
+    const best        = s.reduce((b, m) => m.locked_in_percentage > b.locked_in_percentage ? m : b, s[0]);
     const avg         = Math.round(s.reduce((a, m) => a + m.locked_in_percentage, 0) / 12);
     return { totalLocked, yearPct: Math.round((totalLocked / totalDays) * 100), best, avg };
   })();
@@ -319,47 +396,64 @@ const YearlyView = () => {
       {/* Year nav */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <NavArrow onClick={() => setYear(y => y - 1)} dir="prev" />
-          <span className={TEXT.sectionTitle + " w-12 text-center"}>{year}</span>
-          <NavArrow onClick={() => setYear(y => y + 1)} disabled={year >= new Date().getFullYear()} dir="next" />
+          <NavArrow onClick={() => { setYear(y => y - 1); setSelMonth(null); }} dir="prev" />
+          <span className="font-bold text-gray-800 text-sm w-12 text-center">{year}</span>
+          <NavArrow
+            onClick={() => { setYear(y => y + 1); setSelMonth(null); }}
+            disabled={year >= new Date().getFullYear()}
+            dir="next"
+          />
         </div>
-        <button onClick={() => load(true)} disabled={refreshing} className={BTN.icon}>
+        <button onClick={() => load(true)} disabled={refreshing}
+          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
           <RefreshCw className={`w-4 h-4 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {/* Stats */}
+      {/* Year stats */}
       {stats && (
         <div className="grid grid-cols-2 gap-3">
-          <StatCard value={stats.totalLocked}  label="Locked-in days"  colorKey="green"  />
-          <StatCard value={`${stats.yearPct}%`} label="Year success"   colorKey="blue"   />
-          <StatCard value={`${stats.avg}%`}    label="Monthly avg"     colorKey="purple" />
-          <StatCard value={stats.best.month_name.slice(0,3)} label="Best month" colorKey="orange" />
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black text-green-600">{stats.totalLocked}</div>
+            <div className="text-xs text-gray-400 mt-0.5">Locked-in days</div>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black text-indigo-600">{stats.yearPct}%</div>
+            <div className="text-xs text-gray-400 mt-0.5">Year success</div>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black text-purple-600">{stats.avg}%</div>
+            <div className="text-xs text-gray-400 mt-0.5">Monthly avg</div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black text-amber-600">
+              {stats.best?.month_name?.slice(0, 3) || '—'}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">Best month</div>
+          </div>
         </div>
       )}
 
       {/* Month grid */}
-      <div className={`${CARD} p-4`}>
-        <p className={TEXT.caption + " mb-3"}>Tap a month for details</p>
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <p className="text-xs text-gray-400 mb-3">Tap a month for details</p>
         <div className="grid grid-cols-3 gap-2">
           {data?.monthly_stats?.map(month => {
-            const bg    = monthColor(month.locked_in_days, month.days_in_month);
-            const isGray = bg === "#E5E7EB";
+            const c = monthTileColor(month.locked_in_percentage);
             return (
               <button key={month.month}
                 onClick={() => setSelMonth(s => s === month.month ? null : month.month)}
                 className={`p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] ${
-                  selMonth === month.month ? "ring-2 ring-indigo-400 ring-offset-1" : ""
+                  selMonth === month.month ? 'ring-2 ring-indigo-400 ring-offset-1' : ''
                 }`}
-                style={{ backgroundColor: bg + (isGray ? "" : "25"), border: `1.5px solid ${bg}` }}>
-                <div className="text-xs font-bold" style={{ color: isGray ? "#9CA3AF" : bg }}>
-                  {month.month_name.slice(0,3)}
+                style={{ backgroundColor: c.bg, border: `1.5px solid ${c.border}` }}>
+                <div className="text-xs font-bold" style={{ color: c.text }}>
+                  {month.month_name.slice(0, 3)}
                 </div>
-                <div className="text-xl font-black leading-none mt-1"
-                  style={{ color: isGray ? "#D1D5DB" : bg }}>
+                <div className="text-xl font-black leading-none mt-1" style={{ color: c.text }}>
                   {month.locked_in_days}
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: isGray ? "#9CA3AF" : bg + "CC" }}>
+                <div className="text-xs mt-0.5" style={{ color: c.text + 'CC' }}>
                   {Math.round(month.locked_in_percentage)}%
                 </div>
               </button>
@@ -370,16 +464,17 @@ const YearlyView = () => {
 
       {/* Month drill-down */}
       {selMonth && (
-        <div className={CARD}>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <div>
-              <div className={TEXT.cardTitle}>
+              <div className="font-bold text-gray-800 text-sm">
                 {data?.monthly_stats.find(m => m.month === selMonth)?.month_name} {year}
               </div>
-              <div className={TEXT.caption}>Daily breakdown</div>
+              <div className="text-xs text-gray-400">Daily breakdown — tap a day</div>
             </div>
-            <button onClick={() => setSelMonth(null)} className={BTN.icon}>
-              <ChevronRight className="w-4 h-4 text-gray-400 rotate-90" />
+            <button onClick={() => { setSelMonth(null); setSelectedDay(null); }}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -388,39 +483,41 @@ const YearlyView = () => {
               {[1,2].map(i => <div key={i} className="h-10 bg-gray-100 rounded" />)}
             </div>
           ) : monthData ? (
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-4">
+              {/* Mini stats */}
               <div className="grid grid-cols-2 gap-2">
-                <StatCard value={monthData.statistics.total_locked_in_days} label="Locked days" colorKey="green" />
-                <StatCard value={`${monthData.statistics.locked_in_percentage}%`} label="Success rate" colorKey="indigo" />
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                  <div className="text-lg font-black text-green-600">
+                    {monthData.statistics.total_locked_in_days}
+                  </div>
+                  <div className="text-xs text-gray-400">Locked days</div>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-center">
+                  <div className="text-lg font-black text-indigo-600">
+                    {monthData.statistics.locked_in_percentage}%
+                  </div>
+                  <div className="text-xs text-gray-400">Success rate</div>
+                </div>
               </div>
-              <div className="grid grid-cols-7 gap-1">
-                {["S","M","T","W","T","F","S"].map((d, i) => (
-                  <div key={i} className={TEXT.caption + " text-center py-1"}>{d}</div>
-                ))}
-                {Array.from({ length: new Date(monthData.year, monthData.month - 1, 1).getDay() }, (_, i) => (
-                  <div key={`e-${i}`} />
-                ))}
-                {monthData.daily_data.map(day => {
-                  let bg = "#F3F4F6"; let fg = "#D1D5DB";
-                  if (day.total_tasks > 0) {
-                    if (day.is_locked_in)              { bg = "#10B981"; fg = "#fff"; }
-                    else if (day.completion_rate >= 50) { bg = "#FEF08A"; fg = "#854D0E"; }
-                    else                               { bg = "#FEE2E2"; fg = "#B91C1C"; }
-                  }
-                  return (
-                    <div key={day.day}
-                      className="h-7 rounded-lg flex items-center justify-center text-xs font-medium"
-                      style={{ backgroundColor: bg, color: fg }}>
-                      {day.day}
-                    </div>
-                  );
-                })}
-              </div>
+
+              {/* Calendar using unified colour system */}
+              <CalendarGrid
+                year={monthData.year}
+                month={monthData.month}
+                dailyData={monthData.daily_data}
+                selectedDay={selectedDay}
+                onDayClick={(day) => setSelectedDay(prev => prev?.day === day.day ? null : day)}
+              />
             </div>
           ) : (
-            <p className={TEXT.caption + " p-4 text-center"}>Failed to load details.</p>
+            <p className="text-xs text-gray-400 p-4 text-center">Failed to load details.</p>
           )}
         </div>
+      )}
+
+      {/* Day detail for yearly drill-down */}
+      {selectedDay && selMonth && (
+        <DayDetail day={selectedDay} onClose={() => setSelectedDay(null)} />
       )}
     </div>
   );
@@ -435,21 +532,19 @@ export default function AnalyticsPage() {
       <Navbar />
       <div className={PAGE}>
         <div className={CONTAINER}>
-
           <div className="mb-6">
-            <h1 className={TEXT.pageTitle}>Analytics</h1>
-            <p className={TEXT.caption + " mt-0.5"}>Your performance over time</p>
+            <h1 className="text-2xl font-black text-gray-800">Analytics</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Your performance over time</p>
           </div>
 
           {/* Tabs */}
-          <div className={`${CARD} p-1.5 flex gap-1 mb-6`}>
-            <Tab label="Monthly" icon={Calendar}  active={activeTab === "monthly"} onClick={() => setActiveTab("monthly")} />
-            <Tab label="Yearly"  icon={BarChart3}  active={activeTab === "yearly"}  onClick={() => setActiveTab("yearly")}  />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 flex gap-1 mb-6">
+            <Tab label="Monthly" icon={Calendar} active={activeTab === "monthly"} onClick={() => setActiveTab("monthly")} />
+            <Tab label="Yearly"  icon={BarChart3} active={activeTab === "yearly"}  onClick={() => setActiveTab("yearly")}  />
           </div>
 
           {activeTab === "monthly" && <MonthlyView />}
           {activeTab === "yearly"  && <YearlyView />}
-
         </div>
       </div>
     </>

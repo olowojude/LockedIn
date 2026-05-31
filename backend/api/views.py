@@ -1,4 +1,3 @@
-# api/views.py
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -33,29 +32,18 @@ logger = logging.getLogger(__name__)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """
-    User registration.
-    Uses atomic transaction so a post-creation failure rolls back the
-    user row — preventing the 'account created but frontend got 500' bug.
-    The Daily Tasks Lock signal is wrapped in its own try/except so it
-    never causes this transaction to roll back.
-    """
     try:
         serializer = UserSerializer(data=request.data)
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
         with transaction.atomic():
             user    = serializer.save()
             refresh = RefreshToken.for_user(user)
-
         return Response({
             'user':    UserProfileSerializer(user).data,
             'refresh': str(refresh),
             'access':  str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
-
     except Exception as e:
         logger.error(f"Registration error: {e}")
         return Response(
@@ -107,7 +95,7 @@ def user_profile(request):
 
 
 # ============================================================================
-# LEGACY TASK VIEWS
+# LEGACY TASK VIEWS (kept for backward compat, not used by analytics)
 # ============================================================================
 
 def get_today_date_range():
@@ -127,14 +115,12 @@ def task_list(request):
                 user=request.user, date__range=[start, end]
             ).order_by('id')
             return Response(TaskSerializer(tasks, many=True).data)
-
         elif request.method == 'POST':
             serializer = TaskSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(user=request.user, date=timezone.now())
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     except Exception as e:
         logger.error(f"Task list error: {e}")
         return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -147,7 +133,6 @@ def task_detail(request, pk):
         task = Task.objects.get(pk=pk, user=request.user)
     except Task.DoesNotExist:
         return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
         return Response(TaskSerializer(task).data)
     elif request.method == 'PATCH':
@@ -161,235 +146,59 @@ def task_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def monthly_overview(request):
-    try:
-        month = int(request.GET.get('month', datetime.now().month))
-        year  = int(request.GET.get('year',  datetime.now().year))
-        if not (1 <= month <= 12):
-            return Response({'error': 'Invalid month'}, status=status.HTTP_400_BAD_REQUEST)
-
-        days_in_month = monthrange(year, month)[1]
-        first = timezone.make_aware(datetime(year, month, 1, 0, 0, 0))
-        last  = timezone.make_aware(datetime(year, month, days_in_month, 23, 59, 59))
-
-        daily_agg = (
-            Task.objects
-            .filter(user=request.user, date__range=[first, last])
-            .annotate(day=TruncDate('date'))
-            .values('day')
-            .annotate(
-                total_tasks=Count('id'),
-                completed_tasks=Count('id', filter=Q(completed=True))
-            )
-        )
-        stats_by_day = {s['day']: s for s in daily_agg}
-
-        daily_data   = []
-        total_locked = 0
-        total_active = 0
-
-        for day_num in range(1, days_in_month + 1):
-            d     = date(year, month, day_num)
-            stats = stats_by_day.get(d, {'total_tasks': 0, 'completed_tasks': 0})
-            total = stats['total_tasks']
-            comp  = stats['completed_tasks']
-            locked = total > 0 and total == comp
-
-            if locked:   total_locked += 1
-            if total > 0: total_active += 1
-
-            daily_data.append({
-                'day':             day_num,
-                'date':            d.isoformat(),
-                'total_tasks':     total,
-                'completed_tasks': comp,
-                'is_locked_in':    locked,
-                'completion_rate': round((comp / total * 100) if total > 0 else 0, 2),
-            })
-
-        return Response({
-            'month':        month,
-            'year':         year,
-            'month_name':   calendar.month_name[month],
-            'days_in_month': days_in_month,
-            'daily_data':   daily_data,
-            'statistics': {
-                'total_locked_in_days':   total_locked,
-                'total_days_with_tasks':  total_active,
-                'locked_in_percentage':   round((total_locked / days_in_month * 100), 2),
-                'active_days_percentage': round((total_active / days_in_month * 100), 2),
-            }
-        })
-    except Exception as e:
-        logger.error(f"Monthly overview error: {e}")
-        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def yearly_overview(request):
-    try:
-        year  = int(request.GET.get('year', datetime.now().year))
-        first = timezone.make_aware(datetime(year, 1, 1, 0, 0, 0))
-        last  = timezone.make_aware(datetime(year, 12, 31, 23, 59, 59))
-
-        locked_days = (
-            Task.objects
-            .filter(user=request.user, date__range=[first, last])
-            .annotate(day=TruncDate('date'))
-            .values('day')
-            .annotate(total=Count('id'), completed=Count('id', filter=Q(completed=True)))
-            .filter(total=F('completed'))
-        )
-
-        by_month = {}
-        for row in locked_days:
-            m = row['day'].month
-            by_month[m] = by_month.get(m, 0) + 1
-
-        monthly_stats = []
-        for m in range(1, 13):
-            dim   = monthrange(year, m)[1]
-            count = by_month.get(m, 0)
-            monthly_stats.append({
-                'month':              m,
-                'month_name':         calendar.month_name[m],
-                'days_in_month':      dim,
-                'locked_in_days':     count,
-                'locked_in_percentage': round((count / dim * 100), 2),
-            })
-
-        return Response({'year': year, 'monthly_stats': monthly_stats})
-    except Exception as e:
-        logger.error(f"Yearly overview error: {e}")
-        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def daily_stats(request):
-    start, end = get_today_date_range()
-    stats = Task.objects.filter(
-        user=request.user, date__range=[start, end]
-    ).aggregate(
-        total_tasks=Count('id'),
-        completed_tasks=Count('id', filter=Q(completed=True))
-    )
-    total = stats['total_tasks']
-    comp  = stats['completed_tasks']
-    return Response({
-        'date':            timezone.now().date().isoformat(),
-        'total_tasks':     total,
-        'completed_tasks': comp,
-        'is_locked_in':    total > 0 and total == comp,
-        'completion_rate': round((comp / total * 100) if total > 0 else 0, 2),
-    })
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def daily_tasks(request):
-    date_str = request.GET.get('date')
-    if not date_str:
-        return Response({'error': 'Date required'}, status=status.HTTP_400_BAD_REQUEST)
-    try:
-        target = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except ValueError:
-        return Response({'error': 'Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
-
-    start = timezone.make_aware(datetime.combine(target, datetime.min.time()))
-    end   = timezone.make_aware(datetime.combine(target, datetime.max.time()))
-    tasks = Task.objects.filter(user=request.user, date__range=[start, end]).order_by('id')
-    ser   = TaskSerializer(tasks, many=True)
-    comp  = sum(1 for t in ser.data if t['completed'])
-    return Response({
-        'date': date_str, 'tasks': ser.data,
-        'total_tasks': len(ser.data), 'completed_tasks': comp,
-    })
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def user_streak(request):
-    try:
-        today = timezone.now().date()
-        locked_query = (
-            Task.objects
-            .filter(user=request.user)
-            .annotate(day=TruncDate('date'))
-            .values('day')
-            .annotate(total=Count('id'), completed=Count('id', filter=Q(completed=True)))
-            .filter(total=F('completed'))
-            .order_by('-day')
-        )
-        locked_dates   = {s['day'] for s in locked_query}
-        total_locked   = len(locked_dates)
-        current_streak = 0
-        check          = today
-
-        for _ in range(365):
-            if check in locked_dates:
-                current_streak += 1
-                check -= timedelta(days=1)
-            elif check == today:
-                check -= timedelta(days=1)
-                continue
-            else:
-                break
-
-        month_start = date(today.year, today.month, 1)
-        dim         = monthrange(today.year, today.month)[1]
-        month_end   = date(today.year, today.month, dim)
-        month_locked = sorted([d for d in locked_dates if month_start <= d <= month_end])
-        best_month = streak_run = 0
-
-        for day_num in range(1, dim + 1):
-            if date(today.year, today.month, day_num) in month_locked:
-                streak_run += 1
-                best_month = max(best_month, streak_run)
-            else:
-                streak_run = 0
-
-        today_stats = Task.objects.filter(
-            user=request.user, date__date=today
-        ).aggregate(
-            total=Count('id'),
-            completed=Count('id', filter=Q(completed=True))
-        )
-        today_locked = (
-            today_stats['total'] > 0 and
-            today_stats['total'] == today_stats['completed']
-        )
-
-        return Response({
-            'current_streak':             current_streak,
-            'total_locked_in_days':       total_locked,
-            'highest_streak_this_month':  best_month,
-            'today_locked_in':            today_locked,
-            'today_total_tasks':          today_stats['total'],
-            'today_completed_tasks':      today_stats['completed'],
-            'streak_start_date': (
-                (today - timedelta(days=current_streak - 1)).isoformat()
-                if current_streak > 0 else None
-            ),
-        })
-    except Exception as e:
-        logger.error(f"Streak error: {e}")
-        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 # ============================================================================
 # HELPERS
 # ============================================================================
 
+def get_locked_in_days_for_user(user, start_date, end_date):
+    """
+    Returns a set of dates where the user was fully locked in.
+    A day is locked in when EVERY aspect that has activities that day
+    has ALL of them completed.
+    Days where no aspect has any activity are excluded entirely.
+    """
+    aspects = LifeAspect.objects.filter(user=user)
+
+    activity_rows = (
+        DailyActivity.objects
+        .filter(aspect__in=aspects, date__range=[start_date, end_date])
+        .values('date', 'aspect_id')
+        .annotate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(completed=True))
+        )
+    )
+
+    # Group by date → list of per-aspect stats
+    by_date = {}
+    for row in activity_rows:
+        d = row['date']
+        if d not in by_date:
+            by_date[d] = []
+        by_date[d].append({'total': row['total'], 'completed': row['completed']})
+
+    locked_in_dates = set()
+    partial_dates   = set()
+
+    for d, aspect_stats in by_date.items():
+        all_complete = all(
+            s['total'] > 0 and s['total'] == s['completed']
+            for s in aspect_stats
+        )
+        any_complete = any(s['completed'] > 0 for s in aspect_stats)
+
+        if all_complete:
+            locked_in_dates.add(d)
+        elif any_complete:
+            partial_dates.add(d)
+
+    return locked_in_dates, partial_dates
+
+
 def calculate_streak_for_aspect(aspect):
     """
-    Consecutive locked-in days for an aspect.
-    Days with ZERO activities are skipped — not counted as missed.
-    This correctly handles the Daily Tasks Lock where the user
-    may not add tasks every single day.
+    Consecutive locked-in days for a single aspect.
+    Days with zero activities are skipped (not counted as missed).
     """
     today = timezone.now().date()
 
@@ -420,6 +229,34 @@ def calculate_streak_for_aspect(aspect):
     return streak
 
 
+def calculate_overall_streak(user):
+    """
+    Overall streak across ALL aspects.
+    A day is locked in overall when every aspect with activities that day
+    has all of them completed.
+    """
+    today = timezone.now().date()
+    year_ago = today - timedelta(days=365)
+
+    locked_in_dates, _ = get_locked_in_days_for_user(user, year_ago, today)
+
+    current_streak = 0
+    check = today
+    for _ in range(365):
+        if check in locked_in_dates:
+            current_streak += 1
+            check -= timedelta(days=1)
+        elif check == today:
+            check -= timedelta(days=1)
+            continue
+        else:
+            break
+
+    total_locked  = len(locked_in_dates)
+    today_locked  = today in locked_in_dates
+    return current_streak, total_locked, today_locked
+
+
 def get_aspect_or_404(pk, user):
     try:
         return LifeAspect.objects.get(pk=pk, user=user)
@@ -429,9 +266,10 @@ def get_aspect_or_404(pk, user):
 
 def auto_create_today_activities(aspect):
     """
-    For sprint Locks: auto-create today's activities from default_activities.
-    For the Daily Tasks Lock (no defaults): do nothing — user adds manually.
-    Days with zero activities are simply empty, not missed.
+    Populate today's activities by copying titles from the most recent
+    previous day that has activities for this aspect.
+    Falls back to default_activities only on the very first day.
+    Days with zero activities are simply empty — not missed.
     """
     today    = timezone.now().date()
     existing = DailyActivity.objects.filter(aspect=aspect, date=today)
@@ -439,6 +277,33 @@ def auto_create_today_activities(aspect):
     if existing.exists():
         return existing
 
+    # Find the most recent previous day with activities for this aspect
+    most_recent = (
+        DailyActivity.objects
+        .filter(aspect=aspect, date__lt=today)
+        .order_by('-date')
+        .values('date')
+        .first()
+    )
+
+    if most_recent:
+        previous_activities = DailyActivity.objects.filter(
+            aspect=aspect, date=most_recent['date']
+        ).order_by('id')
+
+        if previous_activities.exists():
+            DailyActivity.objects.bulk_create([
+                DailyActivity(
+                    aspect=aspect,
+                    title=a.title,
+                    date=today,
+                    completed=False,
+                )
+                for a in previous_activities
+            ])
+            return DailyActivity.objects.filter(aspect=aspect, date=today)
+
+    # No previous day — first ever day for this Lock, use defaults
     if aspect.default_activities:
         DailyActivity.objects.bulk_create([
             DailyActivity(aspect=aspect, title=title, date=today, completed=False)
@@ -449,7 +314,6 @@ def auto_create_today_activities(aspect):
 
 
 def check_and_unlock_milestones(aspect):
-    today          = timezone.now().date()
     newly_unlocked = []
 
     milestone_defaults = {
@@ -476,7 +340,7 @@ def check_and_unlock_milestones(aspect):
                 badge_icon='trophy', badge_color=color,
             )
 
-    unachieved     = Milestone.objects.filter(aspect=aspect, achieved=False)
+    unachieved = Milestone.objects.filter(aspect=aspect, achieved=False)
     if not unachieved.exists():
         return []
 
@@ -504,6 +368,212 @@ def check_and_unlock_milestones(aspect):
             newly_unlocked.append(m)
 
     return newly_unlocked
+
+
+# ============================================================================
+# ANALYTICS — uses DailyActivity, not Task
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def monthly_overview(request):
+    try:
+        month = int(request.GET.get('month', datetime.now().month))
+        year  = int(request.GET.get('year',  datetime.now().year))
+        if not (1 <= month <= 12):
+            return Response({'error': 'Invalid month'}, status=status.HTTP_400_BAD_REQUEST)
+
+        days_in_month = monthrange(year, month)[1]
+        first = date(year, month, 1)
+        last  = date(year, month, days_in_month)
+
+        locked_in_dates, partial_dates = get_locked_in_days_for_user(
+            request.user, first, last
+        )
+
+        daily_data   = []
+        total_locked = 0
+        total_active = 0
+
+        for day_num in range(1, days_in_month + 1):
+            d       = date(year, month, day_num)
+            locked  = d in locked_in_dates
+            partial = d in partial_dates
+            has_any = locked or partial
+
+            if locked:  total_locked += 1
+            if has_any: total_active += 1
+
+            daily_data.append({
+                'day':          day_num,
+                'date':         d.isoformat(),
+                'is_locked_in': locked,
+                'is_partial':   partial,
+                'has_activity': has_any,
+            })
+
+        return Response({
+            'month':         month,
+            'year':          year,
+            'month_name':    calendar.month_name[month],
+            'days_in_month': days_in_month,
+            'daily_data':    daily_data,
+            'statistics': {
+                'total_locked_in_days':   total_locked,
+                'total_days_with_tasks':  total_active,
+                'locked_in_percentage':   round((total_locked / days_in_month * 100), 2),
+                'active_days_percentage': round((total_active / days_in_month * 100), 2),
+            }
+        })
+    except Exception as e:
+        logger.error(f"Monthly overview error: {e}")
+        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def yearly_overview(request):
+    try:
+        year  = int(request.GET.get('year', datetime.now().year))
+        first = date(year, 1, 1)
+        last  = date(year, 12, 31)
+
+        locked_in_dates, _ = get_locked_in_days_for_user(request.user, first, last)
+
+        by_month = {}
+        for d in locked_in_dates:
+            by_month[d.month] = by_month.get(d.month, 0) + 1
+
+        monthly_stats = []
+        for m in range(1, 13):
+            dim   = monthrange(year, m)[1]
+            count = by_month.get(m, 0)
+            monthly_stats.append({
+                'month':                m,
+                'month_name':           calendar.month_name[m],
+                'days_in_month':        dim,
+                'locked_in_days':       count,
+                'locked_in_percentage': round((count / dim * 100), 2),
+            })
+
+        return Response({
+            'year':                  year,
+            'total_locked_in_days':  len(locked_in_dates),
+            'monthly_stats':         monthly_stats,
+        })
+    except Exception as e:
+        logger.error(f"Yearly overview error: {e}")
+        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def daily_stats(request):
+    today   = timezone.now().date()
+    aspects = LifeAspect.objects.filter(user=request.user, is_active=True)
+    stats   = DailyActivity.objects.filter(
+        aspect__in=aspects, date=today
+    ).aggregate(
+        total_tasks=Count('id'),
+        completed_tasks=Count('id', filter=Q(completed=True))
+    )
+    total = stats['total_tasks']
+    comp  = stats['completed_tasks']
+    return Response({
+        'date':            today.isoformat(),
+        'total_tasks':     total,
+        'completed_tasks': comp,
+        'is_locked_in':    total > 0 and total == comp,
+        'completion_rate': round((comp / total * 100) if total > 0 else 0, 2),
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def daily_tasks(request):
+    """
+    Returns all activities across all active locks for a given date.
+    Used by the analytics day-detail panel.
+    """
+    date_str = request.GET.get('date')
+    if not date_str:
+        return Response({'error': 'Date required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        target = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({'error': 'Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+    aspects    = LifeAspect.objects.filter(user=request.user)
+    activities = DailyActivity.objects.filter(
+        aspect__in=aspects, date=target
+    ).select_related('aspect').order_by('aspect_id', 'id')
+
+    total  = activities.count()
+    comp   = activities.filter(completed=True).count()
+    locked = total > 0 and total == comp
+
+    # Group by aspect so the frontend can show per-lock breakdown
+    by_aspect = {}
+    for act in activities:
+        name = act.aspect.get_display_name()
+        color = act.aspect.color
+        if act.aspect_id not in by_aspect:
+            by_aspect[act.aspect_id] = {
+                'aspect_id':   act.aspect_id,
+                'aspect_name': name,
+                'color':       color,
+                'activities':  [],
+            }
+        by_aspect[act.aspect_id]['activities'].append({
+            'id':        act.id,
+            'title':     act.title,
+            'completed': act.completed,
+        })
+
+    return Response({
+        'date':            date_str,
+        'total_tasks':     total,
+        'completed_tasks': comp,
+        'is_locked_in':    locked,
+        'by_aspect':       list(by_aspect.values()),
+        # flat list kept for backward compat
+        'tasks': DailyActivitySerializer(activities, many=True).data,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_streak(request):
+    try:
+        today = timezone.now().date()
+        current_streak, total_locked, today_locked = calculate_overall_streak(request.user)
+
+        month_start = date(today.year, today.month, 1)
+        dim         = monthrange(today.year, today.month)[1]
+        month_end   = date(today.year, today.month, dim)
+
+        month_locked, _ = get_locked_in_days_for_user(request.user, month_start, month_end)
+        best_month = streak_run = 0
+        for day_num in range(1, dim + 1):
+            if date(today.year, today.month, day_num) in month_locked:
+                streak_run += 1
+                best_month  = max(best_month, streak_run)
+            else:
+                streak_run = 0
+
+        return Response({
+            'current_streak':            current_streak,
+            'total_locked_in_days':      total_locked,
+            'highest_streak_this_month': best_month,
+            'today_locked_in':           today_locked,
+            'streak_start_date': (
+                (today - timedelta(days=current_streak - 1)).isoformat()
+                if current_streak > 0 else None
+            ),
+        })
+    except Exception as e:
+        logger.error(f"Streak error: {e}")
+        return Response({'error': 'Failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ============================================================================
@@ -554,18 +624,15 @@ def aspect_list(request):
         serializer = LifeAspectSerializer(data=request.data)
         if serializer.is_valid():
             aspect_type = request.data.get('aspect_type')
-            
-            # Block duplicate non-custom locks
             if aspect_type != 'custom':
                 if LifeAspect.objects.filter(user=request.user, aspect_type=aspect_type).exists():
                     return Response(
                         {
-                            'error': 'duplicate_lock',
-                            'message': f"You already have a {dict(LifeAspect.ASPECT_TYPES).get(aspect_type, aspect_type)} Lock. Create a Custom Lock with your own name instead.",
+                            'error':   'duplicate_lock',
+                            'message': f"You already have a {dict(LifeAspect.ASPECT_TYPES).get(aspect_type, aspect_type)} Lock.",
                         },
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
             aspect = serializer.save(user=request.user)
             check_and_unlock_milestones(aspect)
             return Response(LifeAspectSerializer(aspect).data, status=status.HTTP_201_CREATED)
@@ -637,7 +704,7 @@ def aspect_stats(request, pk):
         locked  = total > 0 and total == comp
         partial = comp > 0 and not locked
 
-        if locked:   locked_dates.add(d)
+        if locked:    locked_dates.add(d)
         elif partial: partial_dates.add(d)
 
         calendar_data.append({
@@ -651,17 +718,17 @@ def aspect_stats(request, pk):
 
     total_tracked = len(locked_dates) + len(partial_dates)
     return Response({
-        'aspect_id':             pk,
-        'current_streak':        calculate_streak_for_aspect(aspect),
-        'total_locked_in_days':  len(locked_dates),
-        'total_partial_days':    len(partial_dates),
+        'aspect_id':              pk,
+        'current_streak':         calculate_streak_for_aspect(aspect),
+        'total_locked_in_days':   len(locked_dates),
+        'total_partial_days':     len(partial_dates),
         'overall_locked_in_rate': round(
             (len(locked_dates) / total_tracked * 100) if total_tracked else 0, 1
         ),
-        'days_elapsed':          aspect.days_elapsed,
-        'days_remaining':        aspect.days_remaining,
-        'progress_percentage':   aspect.progress_percentage,
-        'calendar_data':         calendar_data,
+        'days_elapsed':           aspect.days_elapsed,
+        'days_remaining':         aspect.days_remaining,
+        'progress_percentage':    aspect.progress_percentage,
+        'calendar_data':          calendar_data,
     })
 
 
@@ -695,7 +762,7 @@ def aspect_calendar(request, pk):
     for day_num in range(1, dim + 1):
         d      = date(year, month, day_num)
         row    = activity_by_date.get(d)
-        total  = row['total']    if row else 0
+        total  = row['total']     if row else 0
         comp   = row['completed'] if row else 0
         locked = total > 0 and total == comp
         daily_data.append({
@@ -746,10 +813,10 @@ def activity_list(request, aspect_id):
         total      = activities.count()
         comp       = activities.filter(completed=True).count()
         return Response({
-            'date':        target.isoformat(),
-            'activities':  DailyActivitySerializer(activities, many=True).data,
-            'total':       total,
-            'completed':   comp,
+            'date':         target.isoformat(),
+            'activities':   DailyActivitySerializer(activities, many=True).data,
+            'total':        total,
+            'completed':    comp,
             'is_locked_in': total > 0 and total == comp,
         })
 
@@ -814,7 +881,6 @@ def auto_create_activities(request, aspect_id):
 
 # ============================================================================
 # WEEKLY WRAPPED
-# Saturday-only: wrapped can only be generated on Saturday or after week ends.
 # ============================================================================
 
 def _is_saturday_or_later(week_end_date):
@@ -856,17 +922,17 @@ def _generate_wrapped_for_week(aspect, week_start):
     wrapped, _ = WeeklyWrapped.objects.update_or_create(
         aspect=aspect, week_number=week_number,
         defaults={
-            'week_start_date':              week_start,
-            'week_end_date':                week_end,
-            'total_days':                   7,
-            'locked_in_days':               locked_in,
-            'total_activities':             total_acts,
-            'completed_activities':         comp_acts,
-            'completion_rate':              completion_rate,
-            'longest_streak_this_week':     max_streak,
-            'ended_week_on_streak':         streak > 0,
+            'week_start_date':               week_start,
+            'week_end_date':                 week_end,
+            'total_days':                    7,
+            'locked_in_days':                locked_in,
+            'total_activities':              total_acts,
+            'completed_activities':          comp_acts,
+            'completion_rate':               completion_rate,
+            'longest_streak_this_week':      max_streak,
+            'ended_week_on_streak':          streak > 0,
             'previous_week_completion_rate': prev_rate,
-            'improvement_percentage':       improvement,
+            'improvement_percentage':        improvement,
         }
     )
     return wrapped
@@ -893,12 +959,12 @@ def generate_weekly_wrapped(request, aspect_id):
     week_end = week_start + timedelta(days=6)
 
     if not _is_saturday_or_later(week_end):
-        today             = timezone.now().date()
-        days_to_saturday  = (5 - today.weekday()) % 7
-        saturday          = today + timedelta(days=days_to_saturday if days_to_saturday else 7)
+        today            = timezone.now().date()
+        days_to_saturday = (5 - today.weekday()) % 7
+        saturday         = today + timedelta(days=days_to_saturday if days_to_saturday else 7)
         return Response({
             'error':          'not_saturday',
-            'message':        'Your weekly wrapped is not ready yet. Come back on Saturday to see how your week went.',
+            'message':        'Your weekly wrapped is not ready yet. Come back on Saturday.',
             'available_from': saturday.isoformat(),
         }, status=status.HTTP_403_FORBIDDEN)
 
@@ -1003,10 +1069,10 @@ def dashboard(request):
     total_locked_today = 0
 
     for aspect in aspects:
-        stats   = stats_map.get(aspect.id, {'total': 0, 'completed': 0})
-        total   = stats['total']
-        comp    = stats['completed']
-        locked  = total > 0 and total == comp
+        stats  = stats_map.get(aspect.id, {'total': 0, 'completed': 0})
+        total  = stats['total']
+        comp   = stats['completed']
+        locked = total > 0 and total == comp
 
         if locked:
             total_locked_today += 1
@@ -1025,9 +1091,9 @@ def dashboard(request):
         'date':    today.isoformat(),
         'aspects': data,
         'summary': {
-            'total_aspects':    len(data),
-            'locked_in_today':  total_locked_today,
-            'all_locked_in':    total_locked_today == len(data) and len(data) > 0,
+            'total_aspects':   len(data),
+            'locked_in_today': total_locked_today,
+            'all_locked_in':   total_locked_today == len(data) and len(data) > 0,
         }
     })
 
@@ -1035,8 +1101,8 @@ def dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def combined_stats(request):
-    aspects    = LifeAspect.objects.filter(user=request.user)
-    per_aspect = []
+    aspects      = LifeAspect.objects.filter(user=request.user)
+    per_aspect   = []
     grand_locked = grand_days = 0
 
     for aspect in aspects:
@@ -1065,9 +1131,9 @@ def combined_stats(request):
         })
 
     return Response({
-        'overall_locked_in_rate':      round(
+        'overall_locked_in_rate':     round(
             (grand_locked / grand_days * 100) if grand_days > 0 else 0, 1
         ),
-        'grand_total_locked_in_days':  grand_locked,
-        'per_aspect':                  per_aspect,
+        'grand_total_locked_in_days': grand_locked,
+        'per_aspect':                 per_aspect,
     })

@@ -1,4 +1,3 @@
-// src/utils/useAspects.js
 import { useState, useCallback } from "react";
 import api from "./api";
 
@@ -15,8 +14,10 @@ export function useAspects() {
     try {
       const res = await api.get("/aspects/");
       setDashboard(res.data);
+      return res.data;
     } catch (err) {
       setError(err.response?.data?.error || "Failed to load aspects");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -44,6 +45,7 @@ export function useAspects() {
     } catch (err) {
       const msg =
         err.response?.data?.target_date?.[0] ||
+        err.response?.data?.message ||
         err.response?.data?.error ||
         "Failed to create aspect";
       return { ok: false, error: msg };
@@ -65,6 +67,20 @@ export function useAspects() {
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.response?.data?.error || "Failed to delete" };
+    }
+  }, []);
+
+  // Fetch fresh streak + locked-in status for a single aspect from the server
+  const refreshAspectStreak = useCallback(async (aspectId) => {
+    try {
+      const res = await api.get(`/aspects/${aspectId}/`);
+      return {
+        ok: true,
+        current_streak: res.data.current_streak,
+        today_locked_in: res.data.today_locked_in,
+      };
+    } catch {
+      return { ok: false };
     }
   }, []);
 
@@ -102,11 +118,6 @@ export function useAspects() {
     }
   }, []);
 
-  /**
-   * generateWrapped — handles the Saturday-only gate.
-   * On 403, returns { ok: false, isSaturdayGate: true, data: { available_from } }
-   * so the caller can show the correct modal.
-   */
   const generateWrapped = useCallback(async (aspectId, weekStart) => {
     try {
       const body = weekStart ? { week_start: weekStart } : {};
@@ -166,6 +177,7 @@ export function useAspects() {
     dashboard, aspectDetail, loading, detailLoading, error,
     setDashboard, setAspectDetail,
     fetchDashboard, fetchAspectDetail,
+    refreshAspectStreak,
     createAspect, updateAspect, deleteAspect,
     toggleActivity, fetchActivities,
     fetchCalendar,

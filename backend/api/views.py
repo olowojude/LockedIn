@@ -55,7 +55,7 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    username = request.data.get('username')
+    username = request.data.get('username', '').lower().strip()
     password = request.data.get('password')
     if not username or not password:
         return Response(

@@ -41,19 +41,23 @@ class UserSerializer(serializers.ModelSerializer):
         model  = User
         fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name']
 
+    
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        normalized = value.lower().strip()
+        if User.objects.filter(email__iexact=normalized).exists():
             raise serializers.ValidationError("A user with this email already exists")
-        return value.lower()
+        return normalized
 
     def validate_username(self, value):
-        if User.objects.filter(username=value).exists():
+        normalized = value.lower().strip()
+        if User.objects.filter(username__iexact=normalized).exists():
             raise serializers.ValidationError("A user with this username already exists")
-        if not re.match(r'^[\w.@+-]+$', value):
+        if not re.match(r'^[\w.@+-]+$', normalized):
             raise serializers.ValidationError(
                 "Username can only contain letters, numbers, and @/./+/-/_ characters"
             )
-        return value
+        return normalized  # store lowercase
+
 
     def create(self, validated_data):
         try:

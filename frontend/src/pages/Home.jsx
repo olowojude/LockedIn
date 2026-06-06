@@ -1,5 +1,4 @@
-// src/pages/Home.jsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Quote, ChevronRight, Flame, Plus, Check,
@@ -14,7 +13,6 @@ import {
   PROGRESS_TRACK, PROGRESS_FILL, LOCK_ACCENT_BAR, DIVIDER,
 } from "../../utils/design";
 
-// ─── Level definitions ────────────────────────────────────────────────────────
 const LEVELS = [
   { id: 1, name: "Beginner",   icon: Star,        requirement: 1,   color: "#9CA3AF" },
   { id: 2, name: "Committed",  icon: Flame,       requirement: 7,   color: "#F97316" },
@@ -33,21 +31,17 @@ const getLevel = (streak) => {
   return level;
 };
 
-// ─── Level strip ──────────────────────────────────────────────────────────────
 const LevelStrip = ({ streakData, loading }) => {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   if (loading || !streakData) return null;
-
   const streak    = streakData.current_streak;
   const level     = getLevel(streak);
   const LevelIcon = level.icon;
   const unlocked  = LEVELS.filter(l => streak >= l.requirement).length;
 
   return (
-    <div
-      onClick={() => navigate("/profile")}
-      className={`${CARD} p-3 mb-4 flex items-center gap-3 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98]`}
-    >
+    <div onClick={() => navigate("/profile")}
+      className={`${CARD} p-3 mb-4 flex items-center gap-3 cursor-pointer hover:shadow-md transition-all duration-200 active:scale-[0.98]`}>
       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: level.color + "20" }}>
         <LevelIcon className="w-5 h-5" style={{ color: level.color }} />
@@ -65,7 +59,6 @@ const LevelStrip = ({ streakData, loading }) => {
   );
 };
 
-// ─── Quote card ───────────────────────────────────────────────────────────────
 const QuoteCard = ({ quote, loading, error }) => (
   <div className={`${CARD} p-4 mb-4 relative overflow-hidden`}>
     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400" />
@@ -90,7 +83,6 @@ const QuoteCard = ({ quote, loading, error }) => (
   </div>
 );
 
-// ─── Activity row ─────────────────────────────────────────────────────────────
 const ActivityRow = ({ activity, color, onToggle }) => {
   const [optimistic, setOptimistic] = useState(activity.completed);
   useEffect(() => { setOptimistic(activity.completed); }, [activity.completed]);
@@ -107,8 +99,7 @@ const ActivityRow = ({ activity, color, onToggle }) => {
       className="flex items-center gap-3 py-2.5 cursor-pointer group select-none">
       <div
         className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${optimistic ? "" : "border-2"}`}
-        style={optimistic ? { backgroundColor: color } : { borderColor: color + "60" }}
-      >
+        style={optimistic ? { backgroundColor: color } : { borderColor: color + "60" }}>
         {optimistic && <Check className="w-3 h-3 text-white" />}
       </div>
       <span className={`text-sm flex-1 transition-all duration-200 ${
@@ -120,32 +111,51 @@ const ActivityRow = ({ activity, color, onToggle }) => {
   );
 };
 
-// ─── Lock group card ──────────────────────────────────────────────────────────
-const LockGroup = ({ aspect, onCelebrate }) => {
+// LockGroup now accepts onStreakRefresh to trigger parent streak re-fetch
+const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
   const navigate    = useNavigate();
   const [activities, setActivities] = useState(aspect.today_activities || []);
+  // Track local locked-in state for immediate green pill
+  const [lockedIn, setLockedIn] = useState(aspect.today_locked_in || false);
+
+  // Sync when parent data updates (e.g. after dashboard refresh)
+  useEffect(() => {
+    setActivities(aspect.today_activities || []);
+    setLockedIn(aspect.today_locked_in || false);
+  }, [aspect.id, aspect.today_locked_in]);
 
   const total     = activities.length;
   const completed = activities.filter(a => a.completed).length;
-  const allDone   = total > 0 && completed === total;
+  // Use both local optimistic state and server-confirmed state
+  const allDone   = (total > 0 && completed === total) || lockedIn;
 
   const handleToggle = async (activity, newValue) => {
-    setActivities(prev =>
-      prev.map(a => a.id === activity.id ? { ...a, completed: newValue } : a)
+    // Optimistic update
+    const updatedActivities = activities.map(a =>
+      a.id === activity.id ? { ...a, completed: newValue } : a
     );
+    setActivities(updatedActivities);
+
     try {
       await api.patch(`/activities/${activity.id}/`, { completed: newValue });
-      const updated = activities.map(a =>
-        a.id === activity.id ? { ...a, completed: newValue } : a
-      );
-      if (updated.every(a => a.completed) && updated.length > 0 && newValue) {
+
+      const nowAllDone = updatedActivities.every(a => a.completed) && updatedActivities.length > 0;
+
+      if (nowAllDone && newValue) {
+        setLockedIn(true);
         onCelebrate(aspect.display_name);
+        // Re-fetch streak immediately so the level strip updates
+        onStreakRefresh();
+      } else if (!newValue && lockedIn) {
+        // Un-completing a task un-locks the day
+        setLockedIn(false);
+        onStreakRefresh();
       }
+
       return true;
     } catch {
-      setActivities(prev =>
-        prev.map(a => a.id === activity.id ? { ...a, completed: !newValue } : a)
-      );
+      // Roll back on error
+      setActivities(activities);
       return false;
     }
   };
@@ -153,8 +163,6 @@ const LockGroup = ({ aspect, onCelebrate }) => {
   return (
     <div className={`${CARD} overflow-hidden mb-3`}>
       <div className={LOCK_ACCENT_BAR} style={{ backgroundColor: aspect.color }} />
-
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-3 pb-1">
         <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
           style={{ backgroundColor: aspect.color + "20" }}>
@@ -185,7 +193,6 @@ const LockGroup = ({ aspect, onCelebrate }) => {
         </button>
       </div>
 
-      {/* Progress bar */}
       {total > 0 && (
         <div className="px-4 py-1.5">
           <div className={PROGRESS_TRACK}>
@@ -195,14 +202,13 @@ const LockGroup = ({ aspect, onCelebrate }) => {
         </div>
       )}
 
-      {/* Activities */}
       <div className={`px-4 pb-3 ${DIVIDER}`}>
         {activities.length === 0 ? (
           <div className="py-3 text-center">
             <p className={TEXT.caption + " mb-2"}>No daily actions set up for today.</p>
             <button onClick={() => navigate(`/aspects/${aspect.id}`)}
               className="text-xs font-semibold transition-colors" style={{ color: aspect.color }}>
-              Edit or Set up daily actions for today →
+              Set up daily actions →
             </button>
           </div>
         ) : (
@@ -216,8 +222,7 @@ const LockGroup = ({ aspect, onCelebrate }) => {
   );
 };
 
-// ─── Locks section ────────────────────────────────────────────────────────────
-const LocksSection = ({ onCelebrate }) => {
+const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
   const navigate = useNavigate();
   const { dashboard, loading, fetchDashboard } = useAspects();
 
@@ -253,7 +258,6 @@ const LocksSection = ({ onCelebrate }) => {
         <h3 className={TEXT.sectionTitle + " mb-2"}>No Locks yet</h3>
         <p className={TEXT.caption + " mb-6 max-w-xs mx-auto leading-relaxed"}>
           Create your first Lock to start tracking your daily consistency.
-          Choose any area of your life — fitness, finances, a skill, anything.
         </p>
         <button onClick={() => navigate("/onboarding")}
           className={`${BTN.primary} inline-flex items-center gap-2 px-5 py-3 text-sm`}>
@@ -285,7 +289,12 @@ const LocksSection = ({ onCelebrate }) => {
       </div>
 
       {dashboard.map(aspect => (
-        <LockGroup key={aspect.id} aspect={aspect} onCelebrate={onCelebrate} />
+        <LockGroup
+          key={aspect.id}
+          aspect={aspect}
+          onCelebrate={onCelebrate}
+          onStreakRefresh={onStreakRefresh}
+        />
       ))}
 
       <button onClick={() => navigate("/onboarding")}
@@ -297,7 +306,6 @@ const LocksSection = ({ onCelebrate }) => {
   );
 };
 
-// ─── Main page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const [quote, setQuote]               = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(true);
@@ -309,7 +317,6 @@ export default function HomePage() {
   const [lastCelebration, setLastCelebration] = useState(null);
 
   const fetchStreak = useCallback(async () => {
-    setStreakLoading(true);
     try {
       const res = await api.get("/user-streak/");
       setStreakData(res.data);
@@ -333,22 +340,29 @@ export default function HomePage() {
     finally { setQuoteLoading(false); }
   }, []);
 
-  useEffect(() => { fetchQuote(); fetchStreak(); }, []);
+  useEffect(() => {
+    fetchQuote();
+    fetchStreak();
+  }, []);
 
-  // Refresh streak every minute in case of day change
+  // Refresh streak every 60 seconds in case of day rollover
   useEffect(() => {
     const interval = setInterval(fetchStreak, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchStreak]);
 
-  const handleCelebrate = (lockName) => {
+  const handleCelebrate = useCallback((lockName) => {
     const key = `${lockName}-${new Date().toDateString()}`;
     if (lastCelebration === key) return;
     setCelebrationLock(lockName);
     setShowCelebration(true);
     setLastCelebration(key);
+  }, [lastCelebration]);
+
+  // Called by LockGroup whenever a lock-in or un-lock happens
+  const handleStreakRefresh = useCallback(() => {
     fetchStreak();
-  };
+  }, [fetchStreak]);
 
   const handleShare = () => {
     const text = `Just locked in on ${celebrationLock}! Day ${streakData?.current_streak} on LockedIn.`;
@@ -361,8 +375,6 @@ export default function HomePage() {
       <div className={PAGE}>
         <Navbar />
         <div className={CONTAINER}>
-
-          {/* Date heading */}
           <div className="mb-4">
             <h1 className={TEXT.pageTitle}>
               {new Date().toLocaleDateString("en-US", { weekday: "long" })}
@@ -376,8 +388,10 @@ export default function HomePage() {
 
           <LevelStrip streakData={streakData} loading={streakLoading} />
           <QuoteCard quote={quote} loading={quoteLoading} error={quoteError} />
-          <LocksSection onCelebrate={handleCelebrate} />
-
+          <LocksSection
+            onCelebrate={handleCelebrate}
+            onStreakRefresh={handleStreakRefresh}
+          />
         </div>
       </div>
 

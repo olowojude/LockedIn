@@ -208,7 +208,7 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
             <p className={TEXT.caption + " mb-2"}>No daily actions set up for today.</p>
             <button onClick={() => navigate(`/aspects/${aspect.id}`)}
               className="text-xs font-semibold transition-colors" style={{ color: aspect.color }}>
-              Set up daily actions →
+              Edit or Set up daily actions for today →
             </button>
           </div>
         ) : (

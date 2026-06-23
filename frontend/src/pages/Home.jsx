@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Quote, ChevronRight, Flame, Plus, Check,
-  Layers, Star, ShieldCheck, Gem, Rocket, Crown, Sparkles, Lock,
+  Star, ShieldCheck, Gem, Rocket, Crown, Sparkles, Lock,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import StreakCelebrationModal from "../components/StreakCelebrationModal";
@@ -31,9 +31,11 @@ const getLevel = (streak) => {
   return level;
 };
 
+// ─── Level strip ──────────────────────────────────────────────────────────────
 const LevelStrip = ({ streakData, loading }) => {
   const navigate = useNavigate();
   if (loading || !streakData) return null;
+
   const streak    = streakData.current_streak;
   const level     = getLevel(streak);
   const LevelIcon = level.icon;
@@ -59,6 +61,7 @@ const LevelStrip = ({ streakData, loading }) => {
   );
 };
 
+// ─── Quote card ───────────────────────────────────────────────────────────────
 const QuoteCard = ({ quote, loading, error }) => (
   <div className={`${CARD} p-4 mb-4 relative overflow-hidden`}>
     <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400" />
@@ -83,6 +86,7 @@ const QuoteCard = ({ quote, loading, error }) => (
   </div>
 );
 
+// ─── Activity row ─────────────────────────────────────────────────────────────
 const ActivityRow = ({ activity, color, onToggle }) => {
   const [optimistic, setOptimistic] = useState(activity.completed);
   useEffect(() => { setOptimistic(activity.completed); }, [activity.completed]);
@@ -97,8 +101,7 @@ const ActivityRow = ({ activity, color, onToggle }) => {
   return (
     <div onClick={handle}
       className="flex items-center gap-3 py-2.5 cursor-pointer group select-none">
-      <div
-        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${optimistic ? "" : "border-2"}`}
+      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 ${optimistic ? "" : "border-2"}`}
         style={optimistic ? { backgroundColor: color } : { borderColor: color + "60" }}>
         {optimistic && <Check className="w-3 h-3 text-white" />}
       </div>
@@ -111,14 +114,12 @@ const ActivityRow = ({ activity, color, onToggle }) => {
   );
 };
 
-// LockGroup now accepts onStreakRefresh to trigger parent streak re-fetch
+// ─── Lock group card ──────────────────────────────────────────────────────────
 const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
-  const navigate    = useNavigate();
+  const navigate = useNavigate();
   const [activities, setActivities] = useState(aspect.today_activities || []);
-  // Track local locked-in state for immediate green pill
-  const [lockedIn, setLockedIn] = useState(aspect.today_locked_in || false);
+  const [lockedIn, setLockedIn]     = useState(aspect.today_locked_in || false);
 
-  // Sync when parent data updates (e.g. after dashboard refresh)
   useEffect(() => {
     setActivities(aspect.today_activities || []);
     setLockedIn(aspect.today_locked_in || false);
@@ -126,11 +127,9 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
 
   const total     = activities.length;
   const completed = activities.filter(a => a.completed).length;
-  // Use both local optimistic state and server-confirmed state
   const allDone   = (total > 0 && completed === total) || lockedIn;
 
   const handleToggle = async (activity, newValue) => {
-    // Optimistic update
     const updatedActivities = activities.map(a =>
       a.id === activity.id ? { ...a, completed: newValue } : a
     );
@@ -143,18 +142,29 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
 
       if (nowAllDone && newValue) {
         setLockedIn(true);
-        onCelebrate(aspect.display_name);
-        // Re-fetch streak immediately so the level strip updates
+
+        // Check if ALL locks across the whole app are now done
+        try {
+          const streakRes = await api.get("/user-streak/");
+          if (streakRes.data.today_locked_in) {
+            // Major celebration — all locks done
+            onCelebrate(aspect.display_name, streakRes.data.current_streak, true);
+          } else {
+            // Minor celebration — just this lock done
+            onCelebrate(aspect.display_name, 0, false);
+          }
+        } catch {
+          onCelebrate(aspect.display_name, 0, false);
+        }
+
         onStreakRefresh();
       } else if (!newValue && lockedIn) {
-        // Un-completing a task un-locks the day
         setLockedIn(false);
         onStreakRefresh();
       }
 
       return true;
     } catch {
-      // Roll back on error
       setActivities(activities);
       return false;
     }
@@ -163,6 +173,7 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
   return (
     <div className={`${CARD} overflow-hidden mb-3`}>
       <div className={LOCK_ACCENT_BAR} style={{ backgroundColor: aspect.color }} />
+
       <div className="flex items-center gap-3 px-4 pt-3 pb-1">
         <div className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
           style={{ backgroundColor: aspect.color + "20" }}>
@@ -207,8 +218,8 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
           <div className="py-3 text-center">
             <p className={TEXT.caption + " mb-2"}>No daily actions set up for today.</p>
             <button onClick={() => navigate(`/aspects/${aspect.id}`)}
-              className="text-xs font-semibold transition-colors" style={{ color: aspect.color }}>
-              Edit or Set up daily actions for today →
+              className="text-xs font-semibold" style={{ color: aspect.color }}>
+              Set up daily actions →
             </button>
           </div>
         ) : (
@@ -222,6 +233,7 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
   );
 };
 
+// ─── Locks section ────────────────────────────────────────────────────────────
 const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
   const navigate = useNavigate();
   const { dashboard, loading, fetchDashboard } = useAspects();
@@ -306,14 +318,14 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
   );
 };
 
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const [quote, setQuote]               = useState(null);
-  const [quoteLoading, setQuoteLoading] = useState(true);
-  const [quoteError, setQuoteError]     = useState(null);
-  const [streakData, setStreakData]     = useState(null);
-  const [streakLoading, setStreakLoading] = useState(true);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationLock, setCelebrationLock] = useState("");
+  const [quote, setQuote]                   = useState(null);
+  const [quoteLoading, setQuoteLoading]     = useState(true);
+  const [quoteError, setQuoteError]         = useState(null);
+  const [streakData, setStreakData]         = useState(null);
+  const [streakLoading, setStreakLoading]   = useState(true);
+  const [celebration, setCelebration]       = useState(null);
   const [lastCelebration, setLastCelebration] = useState(null);
 
   const fetchStreak = useCallback(async () => {
@@ -326,18 +338,28 @@ export default function HomePage() {
 
   const fetchQuote = useCallback(async () => {
     try {
-      const res = await fetch(
-        "https://quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com/quote?token=ipworld.info",
-        {
-          headers: {
-            "x-rapidapi-host": "quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com",
-            "x-rapidapi-key":  "202528eea6mshd16b1fc39a258c1p18395djsn945f38947b99",
-          },
-        }
-      );
-      setQuote(await res.json());
-    } catch { setQuoteError("Failed to load quote"); }
-    finally { setQuoteLoading(false); }
+      // Use backend proxy if available, fall back to direct call
+      const res = await api.get("/quote/");
+      setQuote(res.data);
+    } catch {
+      // Fallback direct call if proxy not yet set up
+      try {
+        const res = await fetch(
+          "https://quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com/quote?token=ipworld.info",
+          {
+            headers: {
+              "x-rapidapi-host": "quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com",
+              "x-rapidapi-key":  import.meta.env.VITE_RAPIDAPI_KEY || "",
+            },
+          }
+        );
+        setQuote(await res.json());
+      } catch {
+        setQuoteError("Failed to load quote");
+      }
+    } finally {
+      setQuoteLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -345,27 +367,29 @@ export default function HomePage() {
     fetchStreak();
   }, []);
 
-  // Refresh streak every 60 seconds in case of day rollover
   useEffect(() => {
     const interval = setInterval(fetchStreak, 60000);
     return () => clearInterval(interval);
   }, [fetchStreak]);
 
-  const handleCelebrate = useCallback((lockName) => {
-    const key = `${lockName}-${new Date().toDateString()}`;
-    if (lastCelebration === key) return;
-    setCelebrationLock(lockName);
-    setShowCelebration(true);
-    setLastCelebration(key);
-  }, [lastCelebration]);
+  // lockName: string, streak: number (only relevant when isAllDone), isAllDone: bool
+  const handleCelebrate = useCallback((lockName, streak, isAllDone) => {
+    if (isAllDone) {
+      const key = `all-${new Date().toDateString()}`;
+      if (lastCelebration === key) return;
+      setLastCelebration(key);
+      // Refresh streak data so the modal shows the fresh number
+      fetchStreak();
+    }
+    setCelebration({ lockName, streak, isAllDone });
+  }, [lastCelebration, fetchStreak]);
 
-  // Called by LockGroup whenever a lock-in or un-lock happens
   const handleStreakRefresh = useCallback(() => {
     fetchStreak();
   }, [fetchStreak]);
 
   const handleShare = () => {
-    const text = `Just locked in on ${celebrationLock}! Day ${streakData?.current_streak} on LockedIn.`;
+    const text = `Just locked in on ${celebration?.lockName}! Day ${streakData?.current_streak} on LockedIn.`;
     if (navigator.share) navigator.share({ title: "LockedIn", text, url: window.location.origin });
     else navigator.clipboard.writeText(text);
   };
@@ -396,9 +420,11 @@ export default function HomePage() {
       </div>
 
       <StreakCelebrationModal
-        isOpen={showCelebration}
-        onClose={() => setShowCelebration(false)}
+        isOpen={!!celebration}
+        onClose={() => setCelebration(null)}
         streakData={streakData}
+        lockName={celebration?.lockName}
+        isAllDone={celebration?.isAllDone}
         onShare={handleShare}
       />
     </>

@@ -14,20 +14,20 @@ import api from "../../utils/api";
 // ─── Performance icon ─────────────────────────────────────────────────────────
 const PerformanceIcon = ({ type, className = "w-5 h-5" }) => {
   const map = {
-    "fire":        <Flame       className={`${className} text-orange-500`} />,
-    "muscle":      <Dumbbell    className={`${className} text-blue-500`} />,
-    "thumbs-up":   <ThumbsUp    className={`${className} text-green-500`} />,
-    "trending-up": <TrendingUp  className={`${className} text-indigo-500`} />,
+    "fire": <Flame className={`${className} text-orange-500`} />,
+    "muscle": <Dumbbell className={`${className} text-blue-500`} />,
+    "thumbs-up": <ThumbsUp className={`${className} text-green-500`} />,
+    "trending-up": <TrendingUp className={`${className} text-indigo-500`} />,
   };
   return map[type] || <TrendingUp className={`${className} text-indigo-500`} />;
 };
 
-// ─── Saturday wrapped gate modal ──────────────────────────────────────────────
+// ─── Wrapped gate modal ───────────────────────────────────────────────────────
 const WrappedNotReadyModal = ({ availableFrom, onClose }) => {
   const date = availableFrom
     ? new Date(availableFrom).toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric",
-      })
+      weekday: "long", month: "long", day: "numeric",
+    })
     : "this Saturday";
 
   return (
@@ -44,7 +44,7 @@ const WrappedNotReadyModal = ({ availableFrom, onClose }) => {
           </p>
           <p className="font-bold text-indigo-600 text-base mb-4">{date}</p>
           <p className="text-gray-400 text-xs mb-6">
-            Wrapped is generated at the end of each week so you get a complete picture of how you did.
+            Wrapped is generated at the end of each week so you get a complete picture.
           </p>
           <button onClick={onClose}
             className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-xl transition-colors text-sm">
@@ -77,7 +77,7 @@ const MilestoneToast = ({ milestones, onDismiss }) => {
           <div className="font-bold text-sm">{m.title}</div>
           <div className="text-gray-400 text-xs truncate">{m.description}</div>
         </div>
-        <button onClick={onDismiss} className="text-gray-500 hover:text-gray-300 ml-1 flex-shrink-0">
+        <button onClick={onDismiss} className="text-gray-500 hover:text-gray-300 flex-shrink-0">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -85,23 +85,52 @@ const MilestoneToast = ({ milestones, onDismiss }) => {
   );
 };
 
-// ─── Lock-in celebration ──────────────────────────────────────────────────────
-const LockInCelebration = ({ color, onClose }) => {
+// ─── Minor celebration (single lock complete) ─────────────────────────────────
+const LockCelebration = ({ color, lockName, onClose }) => {
   useEffect(() => {
-    const t = setTimeout(onClose, 2800);
+    const t = setTimeout(onClose, 2000);
     return () => clearTimeout(t);
   }, []);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none">
       <div className="text-center animate-pop">
-        <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-3 shadow-2xl"
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-2 shadow-xl"
           style={{ backgroundColor: color }}>
-          <Lock className="w-12 h-12 text-white" />
+          <Check className="w-8 h-8 text-white" />
         </div>
-        <div className="bg-white rounded-2xl px-6 py-3 shadow-xl">
-          <div className="text-2xl font-black text-gray-800">Locked In!</div>
-          <div className="text-gray-400 text-sm mt-0.5">All actions done today</div>
+        <div className="bg-white rounded-2xl px-5 py-2.5 shadow-lg">
+          <div className="text-base font-black text-gray-800">{lockName} locked in!</div>
+          <div className="text-gray-400 text-xs mt-0.5">Keep going 🔥</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Major celebration (all locks complete) ───────────────────────────────────
+const AllLockedInCelebration = ({ color, streak, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none">
+      <div className="text-center animate-pop">
+        <div className="w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-3 shadow-2xl"
+          style={{ backgroundColor: color }}>
+          <Lock className="w-14 h-14 text-white" />
+        </div>
+        <div className="bg-white rounded-2xl px-8 py-4 shadow-2xl">
+          <div className="text-3xl font-black text-gray-800">All Locked In!</div>
+          <div className="text-gray-500 text-sm mt-1">Every lock complete today</div>
+          {streak > 0 && (
+            <div className="flex items-center justify-center gap-1.5 mt-2 bg-orange-50 rounded-xl px-4 py-1.5">
+              <Flame className="w-4 h-4 text-orange-500" />
+              <span className="font-black text-orange-500">{streak} day streak</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -111,8 +140,8 @@ const LockInCelebration = ({ color, onClose }) => {
 // ─── Activity item (today — editable) ────────────────────────────────────────
 const ActivityItem = ({ activity, color, onToggle, onDelete, onEdit }) => {
   const [optimistic, setOptimistic] = useState(activity.completed);
-  const [editing, setEditing]       = useState(false);
-  const [editText, setEditText]     = useState(activity.title);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(activity.title);
 
   useEffect(() => { setOptimistic(activity.completed); }, [activity.completed]);
 
@@ -130,14 +159,13 @@ const ActivityItem = ({ activity, color, onToggle, onDelete, onEdit }) => {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter")  handleSaveEdit();
+    if (e.key === "Enter") handleSaveEdit();
     if (e.key === "Escape") { setEditing(false); setEditText(activity.title); }
   };
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all duration-200 ${
-      optimistic ? "border-transparent" : "border-gray-100 hover:border-gray-200"
-    }`} style={optimistic ? { backgroundColor: color + "12", borderColor: color + "35" } : {}}>
+    <div className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all duration-200 ${optimistic ? "border-transparent" : "border-gray-100 hover:border-gray-200"
+      }`} style={optimistic ? { backgroundColor: color + "12", borderColor: color + "35" } : {}}>
 
       <button onClick={handleToggle} disabled={editing}
         className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200"
@@ -156,9 +184,8 @@ const ActivityItem = ({ activity, color, onToggle, onDelete, onEdit }) => {
         />
       ) : (
         <span onClick={handleToggle}
-          className={`flex-1 text-sm cursor-pointer transition-all duration-200 ${
-            optimistic ? "text-gray-400 line-through" : "text-gray-700"
-          }`}>
+          className={`flex-1 text-sm cursor-pointer transition-all duration-200 ${optimistic ? "text-gray-400 line-through" : "text-gray-700"
+            }`}>
           {activity.title}
         </span>
       )}
@@ -179,10 +206,10 @@ const ActivityItem = ({ activity, color, onToggle, onDelete, onEdit }) => {
   );
 };
 
-// ─── Past day activity item (no edit/delete) ──────────────────────────────────
+// ─── Past day activity item ───────────────────────────────────────────────────
 const PastActivityItem = ({ activity, color, onToggle }) => {
   const [optimistic, setOptimistic] = useState(activity.completed);
-  const [loading, setLoading]       = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => { setOptimistic(activity.completed); }, [activity.completed]);
 
@@ -204,21 +231,18 @@ const PastActivityItem = ({ activity, color, onToggle }) => {
 
   return (
     <button onClick={handleToggle} disabled={loading}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-        optimistic ? "bg-green-50 border-green-200" : "bg-white border-gray-200 hover:border-gray-300"
-      } ${loading ? "opacity-60" : ""}`}>
-      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-        optimistic ? "bg-green-500 border-green-500" : "border-gray-300"
-      }`}>
+      className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${optimistic ? "bg-green-50 border-green-200" : "bg-white border-gray-200 hover:border-gray-300"
+        } ${loading ? "opacity-60" : ""}`}>
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${optimistic ? "bg-green-500 border-green-500" : "border-gray-300"
+        }`}>
         {optimistic && <Check className="w-3 h-3 text-white" />}
       </div>
       <span className={`flex-1 text-sm ${optimistic ? "text-green-700 line-through" : "text-gray-700"}`}>
         {activity.title}
       </span>
       {optimistic && completedOn && (
-        <span className={`text-xs flex-shrink-0 flex items-center gap-1 ${
-          isRetroactive ? "text-amber-500" : "text-gray-400"
-        }`}>
+        <span className={`text-xs flex-shrink-0 flex items-center gap-1 ${isRetroactive ? "text-amber-500" : "text-gray-400"
+          }`}>
           {isRetroactive && <History className="w-3 h-3" />}
           {completedOn}
         </span>
@@ -230,7 +254,7 @@ const PastActivityItem = ({ activity, color, onToggle }) => {
 // ─── Past day panel ───────────────────────────────────────────────────────────
 const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) => {
   const [activities, setActivities] = useState([]);
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const formattedDate = new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric",
@@ -259,7 +283,7 @@ const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) 
     } catch { /* silent */ }
   };
 
-  const allDone  = activities.length > 0 && activities.every(a => a.completed);
+  const allDone = activities.length > 0 && activities.every(a => a.completed);
   const noneDone = activities.every(a => !a.completed);
 
   return (
@@ -280,14 +304,13 @@ const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) 
 
       {!loading && activities.length > 0 && (
         <div className="px-4 pt-3">
-          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-            allDone   ? "bg-green-100 text-green-700"  :
-            noneDone  ? "bg-gray-100 text-gray-500"    :
-                        "bg-amber-50 text-amber-600"
-          }`}>
-            {allDone  ? <><Check className="w-3 h-3" /> Locked in</> :
-             noneDone ? <><X className="w-3 h-3" /> Not started</> :
-                        <><Clock className="w-3 h-3" /> Partial — {activities.filter(a => a.completed).length}/{activities.length}</>}
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${allDone ? "bg-green-100 text-green-700" :
+              noneDone ? "bg-gray-100 text-gray-500" :
+                "bg-amber-50 text-amber-600"
+            }`}>
+            {allDone ? <><Check className="w-3 h-3" /> Locked in</> :
+              noneDone ? <><X className="w-3 h-3" /> Not started</> :
+                <><Clock className="w-3 h-3" /> Partial — {activities.filter(a => a.completed).length}/{activities.length}</>}
           </div>
         </div>
       )}
@@ -300,9 +323,6 @@ const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) 
         ) : activities.length === 0 ? (
           <div className="text-center py-4">
             <div className="text-gray-400 text-sm">No activities recorded for this day.</div>
-            <div className="text-gray-300 text-xs mt-1">
-              Activities are only available for days after your Lock was created.
-            </div>
           </div>
         ) : (
           <div className="space-y-2">
@@ -325,11 +345,11 @@ const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) 
 
 // ─── Calendar heatmap ─────────────────────────────────────────────────────────
 const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
-  const [data, setData]                 = useState(null);
-  const [loading, setLoading]           = useState(true);
-  const [monthDate, setMonthDate]       = useState(new Date());
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [monthDate, setMonthDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [refreshKey, setRefreshKey]     = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(async (d) => {
     setLoading(true);
@@ -349,7 +369,7 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
 
   const handleDayClick = (day) => {
     const clicked = new Date(day.date + "T12:00:00");
-    const today   = new Date();
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     clicked.setHours(0, 0, 0, 0);
     if (clicked >= today) return;
@@ -359,12 +379,11 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
 
   const todayStr = new Date().toDateString();
 
-  // Unified colour helper — green/orange/grey
   const getDayStyle = (day) => {
     if (day.is_locked_in) return { bg: color + "80", text: "text-white font-bold" };
-    if (day.is_partial)   return { bg: "#f97316",    text: "text-white font-semibold" };
-    if (day.total > 0)    return { bg: "#f3f4f6",    text: "text-red-400" };
-    return                       { bg: "#f3f4f6",    text: "text-gray-300" };
+    if (day.is_partial) return { bg: "#f97316", text: "text-white font-semibold" };
+    if (day.total > 0) return { bg: "#fee2e2", text: "text-red-500" };
+    return { bg: "#f3f4f6", text: "text-gray-300" };
   };
 
   return (
@@ -398,7 +417,7 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
         ) : (
           <>
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {["S","M","T","W","T","F","S"].map((d, i) => (
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
                 <div key={i} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
               ))}
             </div>
@@ -407,24 +426,22 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
                 <div key={`e-${i}`} />
               ))}
               {data?.daily_data?.map(day => {
-                const isToday    = new Date(day.date + "T12:00:00").toDateString() === todayStr;
-                const isPast     = new Date(day.date + "T12:00:00") < new Date(new Date().setHours(0,0,0,0));
+                const isToday = new Date(day.date + "T12:00:00").toDateString() === todayStr;
+                const isPast = new Date(day.date + "T12:00:00") < new Date(new Date().setHours(0, 0, 0, 0));
                 const isClickable = isPast && day.total > 0;
-                const isSelected  = selectedDate === day.date;
-                const style       = getDayStyle(day);
+                const isSelected = selectedDate === day.date;
+                const style = getDayStyle(day);
 
                 return (
                   <div key={day.day}
                     onClick={() => handleDayClick(day)}
                     title={day.total > 0 ? `${day.completed}/${day.total} done` : "No activities"}
-                    className={`h-7 rounded-lg flex items-center justify-center text-xs transition-all ${style.text} ${
-                      isClickable ? "cursor-pointer hover:opacity-80 hover:scale-110" : ""
-                    } ${isToday   ? "ring-2 ring-indigo-400 ring-offset-1" : ""} ${
-                      isSelected  ? "ring-2 ring-offset-1" : ""
-                    }`}
+                    className={`h-7 rounded-lg flex items-center justify-center text-xs transition-all ${style.text} ${isClickable ? "cursor-pointer hover:opacity-80 hover:scale-110" : ""
+                      } ${isToday ? "ring-2 ring-indigo-400 ring-offset-1" : ""} ${isSelected ? "ring-2 ring-offset-1" : ""
+                      }`}
                     style={{
                       backgroundColor: style.bg,
-                      ...(isSelected ? { outline: `2px solid ${color}` } : {}),
+                      ...(isSelected ? { outlineOffset: "2px" } : {}),
                     }}>
                     {day.day}
                   </div>
@@ -432,18 +449,15 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
               })}
             </div>
 
-            {/* Unified legend */}
             <div className="flex items-center gap-3 mt-3 text-xs text-gray-400 flex-wrap">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" /> None
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: "#f97316" }} />
-                Partial
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: "#f97316" }} /> Partial
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: color + "80" }} />
-                Locked in
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: color + "80" }} /> Locked in
               </div>
               <div className="flex items-center gap-1 ml-auto text-gray-300">
                 <History className="w-3 h-3" /> Tap past day to edit
@@ -468,7 +482,7 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AspectDetail() {
-  const { id }   = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const {
     aspectDetail, detailLoading, error,
@@ -476,16 +490,18 @@ export default function AspectDetail() {
     generateWrapped, fetchCalendar,
   } = useAspects();
 
-  const [activities, setActivities]           = useState([]);
-  const [currentStreak, setCurrentStreak]     = useState(0);
+  const [activities, setActivities] = useState([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [toastMilestones, setToastMilestones] = useState([]);
-  const [showCelebration, setShowCelebration] = useState(false);
+  const [showLockCelebration, setShowLockCelebration] = useState(false);
+  const [showAllCelebration, setShowAllCelebration] = useState(false);
+  const [freshStreak, setFreshStreak] = useState(0);
   const [showWrappedGate, setShowWrappedGate] = useState(false);
   const [wrappedGateDate, setWrappedGateDate] = useState(null);
   const [generatingWrapped, setGeneratingWrapped] = useState(false);
   const [newActivityText, setNewActivityText] = useState("");
-  const [addingActivity, setAddingActivity]   = useState(false);
-  const [showAddInput, setShowAddInput]       = useState(false);
+  const [addingActivity, setAddingActivity] = useState(false);
+  const [showAddInput, setShowAddInput] = useState(false);
 
   useEffect(() => {
     fetchAspectDetail(id).then(data => {
@@ -499,7 +515,7 @@ export default function AspectDetail() {
     if (aspectDetail?.current_streak !== undefined) setCurrentStreak(aspectDetail.current_streak);
   }, [aspectDetail]);
 
-  // ── The ONE handleToggle ───────────────────────────────────────────────────
+  // ── THE ONLY handleToggle ──────────────────────────────────────────────────
   const handleToggle = async (activity) => {
     const res = await toggleActivity(activity.id, activity.completed);
     if (!res.ok) return;
@@ -512,11 +528,26 @@ export default function AspectDetail() {
     const nowAllDone = updated.every(a => a.completed) && updated.length > 0;
 
     if (nowAllDone && !activity.completed) {
-      setShowCelebration(true);
-      // Re-fetch from server to get the accurate streak count
+      // Step 1 — minor celebration immediately (this lock is done)
+      setShowLockCelebration(true);
+
+      // Step 2 — fetch fresh per-aspect streak from server
       fetchAspectDetail(id).then(data => {
         if (data?.current_streak !== undefined) setCurrentStreak(data.current_streak);
       });
+
+      // Step 3 — check if ALL locks across the app are now done
+      try {
+        const streakRes = await api.get("/user-streak/");
+        if (streakRes.data.today_locked_in) {
+          // All locks are done — upgrade to major celebration after minor fades
+          setTimeout(() => {
+            setShowLockCelebration(false);
+            setFreshStreak(streakRes.data.current_streak);
+            setShowAllCelebration(true);
+          }, 1800);
+        }
+      } catch { /* silent — minor celebration stays */ }
     }
 
     if (res.newMilestones?.length > 0) {
@@ -524,7 +555,7 @@ export default function AspectDetail() {
     }
   };
 
-  // ── Edit activity title ────────────────────────────────────────────────────
+  // ── Edit title ─────────────────────────────────────────────────────────────
   const handleEditActivity = async (activityId, newTitle) => {
     try {
       const res = await api.patch(`/activities/${activityId}/`, { title: newTitle });
@@ -534,7 +565,7 @@ export default function AspectDetail() {
     } catch { /* silent */ }
   };
 
-  // ── Delete activity ────────────────────────────────────────────────────────
+  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDeleteActivity = async (activityId) => {
     try {
       await api.delete(`/activities/${activityId}/`);
@@ -542,14 +573,14 @@ export default function AspectDetail() {
     } catch { /* silent */ }
   };
 
-  // ── Add new activity for today ─────────────────────────────────────────────
+  // ── Add today ──────────────────────────────────────────────────────────────
   const handleAddActivity = async () => {
     const title = newActivityText.trim();
     if (!title) return;
     setAddingActivity(true);
     try {
       const today = new Date().toISOString().split("T")[0];
-      const res   = await api.post(`/aspects/${id}/activities/`, { title, date: today });
+      const res = await api.post(`/aspects/${id}/activities/`, { title, date: today });
       setActivities(prev => [...prev, res.data]);
       setNewActivityText("");
       setShowAddInput(false);
@@ -567,14 +598,13 @@ export default function AspectDetail() {
       navigate(`/wrapped/${res.data.id}`);
       return;
     }
-
     if (res.isSaturdayGate || res.error === "not_saturday" || res.data?.error === "not_saturday") {
       setWrappedGateDate(res.data?.available_from || null);
       setShowWrappedGate(true);
     }
   };
 
-  // ── Loading / error states ─────────────────────────────────────────────────
+  // ── Loading / error ────────────────────────────────────────────────────────
   if (detailLoading) {
     return (
       <>
@@ -611,9 +641,9 @@ export default function AspectDetail() {
     is_forever,
   } = aspectDetail;
 
-  const totalActivities     = activities.length;
+  const totalActivities = activities.length;
   const completedActivities = activities.filter(a => a.completed).length;
-  const isLockedIn          = totalActivities > 0 && completedActivities === totalActivities;
+  const isLockedIn = totalActivities > 0 && completedActivities === totalActivities;
 
   return (
     <>
@@ -678,13 +708,12 @@ export default function AspectDetail() {
                   })}
                 </p>
               </div>
-              <div className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                isLockedIn
+              <div className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${isLockedIn
                   ? "text-white"
                   : totalActivities === 0
                     ? "bg-gray-100 text-gray-400"
                     : "bg-gray-100 text-gray-600"
-              }`} style={isLockedIn ? { backgroundColor: color } : {}}>
+                }`} style={isLockedIn ? { backgroundColor: color } : {}}>
                 {isLockedIn ? "Locked in!" : `${completedActivities}/${totalActivities}`}
               </div>
             </div>
@@ -708,7 +737,7 @@ export default function AspectDetail() {
                   value={newActivityText}
                   onChange={e => setNewActivityText(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === "Enter")  handleAddActivity();
+                    if (e.key === "Enter") handleAddActivity();
                     if (e.key === "Escape") { setShowAddInput(false); setNewActivityText(""); }
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -746,11 +775,10 @@ export default function AspectDetail() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {milestones.slice(0, 6).map(m => (
-                  <div key={m.id} className={`rounded-xl p-3 flex items-center gap-2 ${
-                    m.achieved
+                  <div key={m.id} className={`rounded-xl p-3 flex items-center gap-2 ${m.achieved
                       ? "bg-yellow-50 border border-yellow-200"
                       : "bg-gray-50 border border-gray-100"
-                  }`}>
+                    }`}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{ backgroundColor: m.achieved ? m.badge_color : "#E5E7EB" }}>
                       <Trophy className={`w-3.5 h-3.5 ${m.achieved ? "text-white" : "text-gray-400"}`} />
@@ -767,7 +795,7 @@ export default function AspectDetail() {
             </div>
           )}
 
-          {/* Weekly Wrapped */}
+          {/* Weekly wrapped */}
           {!is_forever && (
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
@@ -804,8 +832,19 @@ export default function AspectDetail() {
       </div>
 
       {/* Overlays */}
-      {showCelebration && (
-        <LockInCelebration color={color} onClose={() => setShowCelebration(false)} />
+      {showLockCelebration && !showAllCelebration && (
+        <LockCelebration
+          color={color}
+          lockName={display_name}
+          onClose={() => setShowLockCelebration(false)}
+        />
+      )}
+      {showAllCelebration && (
+        <AllLockedInCelebration
+          color={color}
+          streak={freshStreak}
+          onClose={() => setShowAllCelebration(false)}
+        />
       )}
       {toastMilestones.length > 0 && (
         <MilestoneToast milestones={toastMilestones} onDismiss={() => setToastMilestones([])} />

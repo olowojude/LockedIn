@@ -6,6 +6,7 @@ import {
   BarChart2, Gift, Plus, Trash2,
   Pencil, X, Clock, TrendingUp,
   Dumbbell, ThumbsUp, Lock, History,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAspects } from "../../utils/useAspects";
@@ -20,6 +21,76 @@ const PerformanceIcon = ({ type, className = "w-5 h-5" }) => {
     "trending-up": <TrendingUp className={`${className} text-indigo-500`} />,
   };
   return map[type] || <TrendingUp className={`${className} text-indigo-500`} />;
+};
+
+// ─── Forever-lock hero ────────────────────────────────────────────────────────
+// Used instead of the sprint-progress bar when a Lock has no target_date.
+// There's no denominator for a completion %, so instead of a ring we lead with
+// the streak itself as a hero number, then show a milestone roadmap in place
+// of a fill-based progress visual.
+const FOREVER_THRESHOLDS = [7, 14, 30, 60, 90, 180];
+
+const ForeverHero = ({ currentStreak, daysElapsed, milestonesAchieved }) => {
+  const next = FOREVER_THRESHOLDS.find(t => t > currentStreak);
+  const lastPassedIndex = FOREVER_THRESHOLDS.filter(t => t <= currentStreak).length - 1;
+  const fillPct = FOREVER_THRESHOLDS.length > 1
+    ? (Math.max(lastPassedIndex, 0) / (FOREVER_THRESHOLDS.length - 1)) * 100
+    : 0;
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-[#EBEBEE] shadow-sm">
+      <div className="text-center mb-5">
+        <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-semibold">
+          <InfinityIcon className="w-3 h-3" />
+          Ongoing &middot; no end date
+        </span>
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <Flame className="w-8 h-8 text-orange-500" />
+          <span className="text-5xl font-black text-gray-800">{currentStreak}</span>
+        </div>
+        <p className="text-gray-400 text-sm mt-1">days locked in, back to back</p>
+      </div>
+
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your journey</span>
+        {next && <span className="text-xs text-gray-400">next: {next} days</span>}
+      </div>
+
+      <div className="relative px-1 pt-1 pb-1">
+        <div className="absolute top-[9px] left-1.5 right-1.5 h-[3px] bg-[#EBEBEE] rounded-full" />
+        <div className="absolute top-[9px] left-1.5 h-[3px] bg-indigo-600 rounded-full transition-all duration-500"
+          style={{ width: `${fillPct}%` }} />
+        <div className="relative flex justify-between">
+          {FOREVER_THRESHOLDS.map(t => {
+            const isPassed = t <= currentStreak;
+            return (
+              <div key={t} className="flex flex-col items-center">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                  isPassed ? "bg-indigo-600" : "bg-gray-200"
+                }`}>
+                  {isPassed && <Check className="w-3 h-3 text-white" />}
+                </div>
+                <span className={`text-[9px] mt-1.5 ${isPassed ? "text-indigo-600 font-semibold" : "text-gray-400"}`}>
+                  {t}d
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mt-5">
+        <div className="bg-[#F4F4F7] rounded-xl p-3 text-center">
+          <div className="text-base font-bold text-gray-800">{daysElapsed}</div>
+          <div className="text-xs text-gray-400">days tracked</div>
+        </div>
+        <div className="bg-[#F4F4F7] rounded-xl p-3 text-center">
+          <div className="text-base font-bold text-gray-800">{milestonesAchieved}</div>
+          <div className="text-xs text-gray-400">milestones earned</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─── Wrapped gate modal ───────────────────────────────────────────────────────
@@ -287,8 +358,8 @@ const PastDayPanel = ({ dateStr, aspectId, color, onClose, onCalendarRefresh }) 
   const noneDone = activities.every(a => !a.completed);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+    <div className="bg-white rounded-2xl border border-[#EBEBEE] shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#EBEBEE]">
         <div>
           <div className="font-bold text-gray-800 text-sm">{formattedDate}</div>
           <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
@@ -383,12 +454,12 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
     if (day.is_locked_in) return { bg: color + "80", text: "text-white font-bold" };
     if (day.is_partial) return { bg: "#f97316", text: "text-white font-semibold" };
     if (day.total > 0) return { bg: "#fee2e2", text: "text-red-500" };
-    return { bg: "#f3f4f6", text: "text-gray-300" };
+    return { bg: "#EBEBEE", text: "text-gray-300" };
   };
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-400" />
@@ -451,7 +522,7 @@ const CalendarHeatmap = ({ aspectId, color, fetchCalendar }) => {
 
             <div className="flex items-center gap-3 mt-3 text-xs text-gray-400 flex-wrap">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-gray-100 border border-gray-200" /> None
+                <div className="w-3 h-3 rounded bg-[#EBEBEE] border border-gray-200" /> None
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: "#f97316" }} /> Partial
@@ -644,17 +715,18 @@ export default function AspectDetail() {
   const totalActivities = activities.length;
   const completedActivities = activities.filter(a => a.completed).length;
   const isLockedIn = totalActivities > 0 && completedActivities === totalActivities;
+  const milestonesAchieved = milestones.filter(m => m.achieved).length;
 
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#F4F4F7]">
         <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
 
           {/* Header */}
           <div className="flex items-center gap-3">
             <button onClick={() => navigate("/aspects")}
-              className="w-9 h-9 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center hover:bg-gray-50 transition-colors">
+              className="w-9 h-9 bg-white rounded-xl shadow-sm border border-[#EBEBEE] flex items-center justify-center hover:bg-gray-50 transition-colors">
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div className="flex-1 min-w-0">
@@ -673,20 +745,20 @@ export default function AspectDetail() {
 
           {/* Why statement */}
           {why_statement && (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
               <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1">Your why</p>
               <p className="text-gray-600 text-sm italic">"{why_statement}"</p>
             </div>
           )}
 
-          {/* Sprint progress */}
+          {/* Sprint progress (fixed-duration Locks) OR forever-lock hero */}
           {!is_forever && progress_percentage !== null && (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
               <div className="flex justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-700">Sprint progress</span>
                 <span className="text-sm font-bold" style={{ color }}>{progress_percentage}%</span>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-2 bg-[#EBEBEE] rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-700"
                   style={{ width: `${progress_percentage}%`, backgroundColor: color }} />
               </div>
@@ -697,8 +769,16 @@ export default function AspectDetail() {
             </div>
           )}
 
+          {is_forever && (
+            <ForeverHero
+              currentStreak={currentStreak}
+              daysElapsed={days_elapsed}
+              milestonesAchieved={milestonesAchieved}
+            />
+          )}
+
           {/* Today's check-in */}
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-bold text-gray-800">Today's actions</h2>
@@ -766,9 +846,10 @@ export default function AspectDetail() {
           {/* Calendar */}
           <CalendarHeatmap aspectId={id} color={color} fetchCalendar={fetchCalendar} />
 
-          {/* Milestones */}
-          {!is_forever && milestones.length > 0 && (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          {/* Milestones — shown for both fixed-duration and forever Locks now,
+              since streak-based milestones (7/14/30 day) apply either way. */}
+          {milestones.length > 0 && (
+            <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Trophy className="w-4 h-4 text-yellow-500" />
                 <h2 className="font-bold text-gray-800 text-sm">Milestones</h2>
@@ -797,7 +878,7 @@ export default function AspectDetail() {
 
           {/* Weekly wrapped */}
           {!is_forever && (
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 border border-[#EBEBEE] shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Gift className="w-4 h-4 text-indigo-500" />
                 <h2 className="font-bold text-gray-800 text-sm">Weekly Wrapped</h2>

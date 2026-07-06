@@ -5,12 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 
-# ============================================================================
-# LEGACY MODEL
-# ============================================================================
-
 class Task(models.Model):
-    """Legacy model — kept for backward compatibility during migration."""
     title     = models.CharField(max_length=200)
     completed = models.BooleanField(default=False)
     date      = models.DateTimeField(default=timezone.now)
@@ -28,17 +23,8 @@ class Task(models.Model):
         return f"{self.user.username}: {self.title}"
 
 
-# ============================================================================
-# LOCKEDIN 2.0 MODELS
-# ============================================================================
 
 class LifeAspect(models.Model):
-    """
-    A Lock — one area of life the user wants to transform.
-    target_date and duration_days are nullable for forever Locks
-    (e.g. the auto-created Daily Tasks Lock).
-    """
-
     ASPECT_TYPES = [
         ('fitness',       'Body & Fitness'),
         ('finance',       'Financial Growth'),
@@ -63,7 +49,7 @@ class LifeAspect(models.Model):
     aspect_type  = models.CharField(max_length=50, choices=ASPECT_TYPES)
     custom_name  = models.CharField(max_length=100, null=True, blank=True)
 
-    # Goal settings — nullable so "forever" Locks have no end date
+    # Goal settings (nullable so "forever" Locks have no end date)
     start_date    = models.DateField(default=timezone.now)
     target_date   = models.DateField(null=True, blank=True)
     duration_days = models.IntegerField(null=True, blank=True)
@@ -80,7 +66,7 @@ class LifeAspect(models.Model):
     is_active    = models.BooleanField(default=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
-    # Default activities — repeat daily unless overridden
+    # Default activities
     default_activities = models.JSONField(default=list, blank=True)
 
     # Timestamps
@@ -160,7 +146,6 @@ class LifeAspect(models.Model):
 class DailyActivity(models.Model):
     """
     A single activity for a specific aspect on a specific date.
-
     For sprint Locks: default_activities auto-populate each day.
     For the Daily Tasks Lock: user adds activities freely each day;
     days with zero activities are simply empty (not counted as missed).
@@ -194,10 +179,8 @@ class DailyActivity(models.Model):
 
 
 class WeeklyWrapped(models.Model):
-    """
-    Weekly summary for an aspect.
-    Only generated on Saturdays (or viewable from Saturday onwards).
-    """
+    #Weekly summary for an aspect only generated on Saturdays
+    
 
     aspect           = models.ForeignKey(LifeAspect, on_delete=models.CASCADE, related_name='weekly_wraps')
     week_number      = models.IntegerField()
@@ -249,7 +232,7 @@ class WeeklyWrapped(models.Model):
 
 
 class Milestone(models.Model):
-    """Achievement milestones — auto-checked after activity completion."""
+    #Achievement milestones — auto-checked after activity completion.
 
     MILESTONE_TYPES = [
         ('streak_3',      '3 Day Streak'),

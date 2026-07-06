@@ -1,16 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  Quote, ChevronRight, Flame, Plus, Check,
-  Star, ShieldCheck, Gem, Rocket, Crown, Sparkles, Lock,
+  ChevronRight, Flame, Plus, Check, Lock, Trophy,
+  Star, ShieldCheck, Gem, Rocket, Crown, Sparkles,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import StreakCelebrationModal from "../components/StreakCelebrationModal";
 import api from "../../utils/api";
 import { useAspects } from "../../utils/useAspects";
 import {
-  PAGE, CONTAINER, CARD, TEXT, BTN,
+  PAGE, CONTAINER, CARD, CARD_HERO, TEXT, BTN,
   PROGRESS_TRACK, PROGRESS_FILL, LOCK_ACCENT_BAR, DIVIDER,
+  QUICK_STAT, QUICK_STAT_ICON_WRAP,
 } from "../../utils/design";
 
 const LEVELS = [
@@ -61,30 +62,116 @@ const LevelStrip = ({ streakData, loading }) => {
   );
 };
 
-// ─── Quote card ───────────────────────────────────────────────────────────────
-const QuoteCard = ({ quote, loading, error }) => (
-  <div className={`${CARD} p-4 mb-4 relative overflow-hidden`}>
-    <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400" />
-    <div className="flex items-center gap-2 mb-3">
-      <Quote className="w-4 h-4 text-indigo-400" />
-      <span className={TEXT.label}>Daily wisdom</span>
-    </div>
-    {loading && (
-      <div className="animate-pulse space-y-2">
-        <div className="h-3.5 bg-gray-200 rounded w-full" />
-        <div className="h-3.5 bg-gray-200 rounded w-4/5" />
-        <div className="h-3 bg-gray-200 rounded w-1/3" />
+// ─── Quick analytics — weekly progress ring + quick-stat pills ───────────────
+// Replaces the old daily-quote card. The ring's percentage is computed from the
+// last 7 calendar days of the current month's overview (clipped to month start
+// if we're less than 7 days in). Streak + lifetime numbers come from /user-streak/.
+const QuickAnalyticsCard = ({ streakData, streakLoading }) => {
+  const [weekPct, setWeekPct]       = useState(0);
+  const [weekLocked, setWeekLocked] = useState(0);
+  const [weekTotal, setWeekTotal]   = useState(7);
+  const [weekLoading, setWeekLoading] = useState(true);
+  const [activeLocks, setActiveLocks] = useState(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const now = new Date();
+      try {
+        const res = await api.get(
+          `/monthly-overview/?month=${now.getMonth() + 1}&year=${now.getFullYear()}`
+        );
+        const daily   = res.data?.daily_data || [];
+        const todayNum = now.getDate();
+        const start    = Math.max(1, todayNum - 6);
+        const window   = daily.filter(d => d.day >= start && d.day <= todayNum);
+        const locked   = window.filter(d => d.is_locked_in).length;
+        setWeekLocked(locked);
+        setWeekTotal(window.length || 7);
+        setWeekPct(window.length ? Math.round((locked / window.length) * 100) : 0);
+      } catch {
+        setWeekPct(0);
+      } finally {
+        setWeekLoading(false);
+      }
+
+      try {
+        const res = await api.get("/dashboard/");
+        setActiveLocks(Array.isArray(res.data) ? res.data.length : 0);
+      } catch {
+        setActiveLocks(null);
+      }
+    };
+    load();
+  }, []);
+
+  if (streakLoading) {
+    return <div className={`${CARD} p-4 mb-4 animate-pulse h-24`} />;
+  }
+
+  const r = 26;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - (weekLoading ? 0 : weekPct / 100));
+
+  const statusLabel = weekLoading
+    ? "Loading…"
+    : weekPct >= 70 ? "On track"
+    : weekPct >= 40 ? "Keep going"
+    : "Let's pick it up";
+
+  return (
+    <div className="mb-4">
+      <div className={`${CARD_HERO} p-4 flex items-center gap-4 mb-3`}>
+        <svg width="64" height="64" viewBox="0 0 64 64" className="flex-shrink-0">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="7" />
+          <circle cx="32" cy="32" r={r} fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={weekLoading ? circ : offset}
+            style={{
+              transition: "stroke-dashoffset 0.6s ease",
+              transform: "rotate(-90deg)",
+              transformOrigin: "32px 32px",
+            }} />
+          <text x="32" y="37" textAnchor="middle" fontSize="14" fontWeight="600" fill="#fff">
+            {weekLoading ? "…" : `${weekPct}%`}
+          </text>
+        </svg>
+        <div className="min-w-0">
+          <div className="text-[11px] text-indigo-200 uppercase tracking-wide font-semibold mb-0.5">
+            This week
+          </div>
+          <div className="text-white text-sm font-semibold">{statusLabel}</div>
+          <div className="text-indigo-200 text-xs">
+            {weekLoading ? "\u00A0" : `${weekLocked} of ${weekTotal} days locked in`}
+          </div>
+        </div>
       </div>
-    )}
-    {error && <p className={TEXT.caption}>{error}</p>}
-    {quote && (
-      <blockquote className="border-l-2 border-indigo-200 pl-3">
-        <p className="text-gray-600 text-sm leading-relaxed italic mb-1.5">"{quote.text}"</p>
-        <footer className={TEXT.caption}>— {quote.author || "Unknown"}</footer>
-      </blockquote>
-    )}
-  </div>
-);
+
+      <div className="flex gap-2.5">
+        <div className={QUICK_STAT}>
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-orange-50`}>
+            <Flame className="w-3.5 h-3.5 text-orange-500" />
+          </div>
+          <div className="text-base font-bold text-gray-800">{streakData?.current_streak ?? 0}</div>
+          <div className={TEXT.caption}>day streak</div>
+        </div>
+        <div className={QUICK_STAT}>
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-indigo-50`}>
+            <Lock className="w-3.5 h-3.5 text-indigo-500" />
+          </div>
+          <div className="text-base font-bold text-gray-800">{activeLocks ?? "—"}</div>
+          <div className={TEXT.caption}>active locks</div>
+        </div>
+        <div className={QUICK_STAT}>
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-green-50`}>
+            <Trophy className="w-3.5 h-3.5 text-green-600" />
+          </div>
+          <div className="text-base font-bold text-gray-800">{streakData?.total_locked_in_days ?? 0}</div>
+          <div className={TEXT.caption}>total locked-in</div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Activity row ─────────────────────────────────────────────────────────────
 const ActivityRow = ({ activity, color, onToggle }) => {
@@ -143,14 +230,11 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
       if (nowAllDone && newValue) {
         setLockedIn(true);
 
-        // Check if ALL locks across the whole app are now done
         try {
           const streakRes = await api.get("/user-streak/");
           if (streakRes.data.today_locked_in) {
-            // Major celebration — all locks done
             onCelebrate(aspect.display_name, streakRes.data.current_streak, true);
           } else {
-            // Minor celebration — just this lock done
             onCelebrate(aspect.display_name, 0, false);
           }
         } catch {
@@ -320,9 +404,6 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const [quote, setQuote]                   = useState(null);
-  const [quoteLoading, setQuoteLoading]     = useState(true);
-  const [quoteError, setQuoteError]         = useState(null);
   const [streakData, setStreakData]         = useState(null);
   const [streakLoading, setStreakLoading]   = useState(true);
   const [celebration, setCelebration]       = useState(null);
@@ -336,34 +417,7 @@ export default function HomePage() {
     finally { setStreakLoading(false); }
   }, []);
 
-  const fetchQuote = useCallback(async () => {
-    try {
-      // Use backend proxy if available, fall back to direct call
-      const res = await api.get("/quote/");
-      setQuote(res.data);
-    } catch {
-      // Fallback direct call if proxy not yet set up
-      try {
-        const res = await fetch(
-          "https://quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com/quote?token=ipworld.info",
-          {
-            headers: {
-              "x-rapidapi-host": "quotes-inspirational-quotes-motivational-quotes.p.rapidapi.com",
-              "x-rapidapi-key":  import.meta.env.VITE_RAPIDAPI_KEY || "",
-            },
-          }
-        );
-        setQuote(await res.json());
-      } catch {
-        setQuoteError("Failed to load quote");
-      }
-    } finally {
-      setQuoteLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchQuote();
     fetchStreak();
   }, []);
 
@@ -411,7 +465,7 @@ export default function HomePage() {
           </div>
 
           <LevelStrip streakData={streakData} loading={streakLoading} />
-          <QuoteCard quote={quote} loading={quoteLoading} error={quoteError} />
+          <QuickAnalyticsCard streakData={streakData} streakLoading={streakLoading} />
           <LocksSection
             onCelebrate={handleCelebrate}
             onStreakRefresh={handleStreakRefresh}

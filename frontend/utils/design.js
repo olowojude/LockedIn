@@ -5,18 +5,21 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Page layout ───────────────────────────────────────────────────────────────
-// Every page uses this as its outer wrapper
-export const PAGE   = "min-h-screen bg-gray-50";
+// Every page uses this as its outer wrapper.
+// Soft greyish-white instead of a flat near-white — gives cards somewhere to sit.
+export const PAGE   = "min-h-screen bg-[#F4F4F7]";
 // Every page's content container
 export const CONTAINER = "max-w-lg mx-auto px-4 py-6 pb-10";
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
-// Standard content card (white, subtle border, no shadow weight)
-export const CARD         = "bg-white rounded-2xl border border-gray-100 shadow-sm";
+// Standard content card (white, subtle grey border, no shadow weight)
+export const CARD         = "bg-white rounded-2xl border border-[#EBEBEE] shadow-sm";
 // Card with extra internal padding
 export const CARD_PADDED  = `${CARD} p-4`;
 // Raised card for hero/featured content (same radius, slightly stronger shadow)
-export const CARD_RAISED  = "bg-white rounded-2xl border border-gray-100 shadow-md";
+export const CARD_RAISED  = "bg-white rounded-2xl border border-[#EBEBEE] shadow-md";
+// Dark hero card (used for the weekly-progress / streak-hero blocks)
+export const CARD_HERO    = "rounded-2xl bg-[#4338CA]";
 
 // ── Typography ────────────────────────────────────────────────────────────────
 export const TEXT = {
@@ -38,7 +41,7 @@ export const BTN = {
 };
 
 // ── Inputs ────────────────────────────────────────────────────────────────────
-export const INPUT = "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white";
+export const INPUT = "w-full px-3 py-2.5 border border-[#EBEBEE] rounded-xl text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white";
 export const TEXTAREA = `${INPUT} resize-none`;
 
 // ── Status colors ─────────────────────────────────────────────────────────────
@@ -55,21 +58,27 @@ export const STATUS = {
 };
 
 // ── Section header (title + optional action link) ─────────────────────────────
-// Usage: <SectionHeader title="Today's Locks" action="See all" to="/aspects" />
 export const SECTION_HEADER = "flex items-center justify-between mb-3";
 
 // ── Divider ───────────────────────────────────────────────────────────────────
-export const DIVIDER = "divide-y divide-gray-50";
+export const DIVIDER = "divide-y divide-[#F0F0F2]";
 
 // ── Notice / advisory banner ──────────────────────────────────────────────────
 export const NOTICE = "bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5";
 export const NOTICE_TEXT = "text-amber-700 text-xs leading-relaxed";
+
+// Info / neutral banner (used for the forever-lock explainer, etc.)
+export const INFO_NOTICE = "bg-green-50 border border-green-100 rounded-xl px-3 py-2.5";
+export const INFO_NOTICE_TEXT = "text-green-700 text-xs leading-relaxed";
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 export const EMPTY_ICON_WRAP = "w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-3";
 
 // ── Streak badge ──────────────────────────────────────────────────────────────
 export const STREAK_BADGE = "inline-flex items-center gap-1.5 bg-orange-50 text-orange-500 px-3 py-1.5 rounded-xl text-sm font-bold";
+
+// Small pill used for "Ongoing · no end date" on forever Locks
+export const FOREVER_BADGE = "inline-flex items-center gap-1.5 bg-green-50 text-green-600 px-3 py-1 rounded-full text-xs font-semibold";
 
 // ── Modal overlay ─────────────────────────────────────────────────────────────
 export const MODAL_OVERLAY  = "fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm";
@@ -80,5 +89,13 @@ export const MODAL_ACCENT   = "h-1 w-full";  // colored top bar, set backgroundC
 export const LOCK_ACCENT_BAR = "h-0.5 w-full";
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
-export const PROGRESS_TRACK = "h-1.5 bg-gray-100 rounded-full overflow-hidden";
+export const PROGRESS_TRACK = "h-1.5 bg-[#EBEBEE] rounded-full overflow-hidden";
 export const PROGRESS_FILL  = "h-full rounded-full transition-all duration-500";
+
+// ── Quick-stat pill (small 3-up stat cards — streak / active locks / etc.) ─────
+export const QUICK_STAT = "flex-1 bg-white rounded-2xl border border-[#EBEBEE] p-3";
+export const QUICK_STAT_ICON_WRAP = "w-7 h-7 rounded-lg flex items-center justify-center mb-2";
+
+// ── Milestone roadmap (used on forever Locks in place of a % progress bar) ────
+export const ROADMAP_TRACK = "absolute top-[9px] left-1.5 right-1.5 h-[3px] bg-[#EBEBEE] rounded-full";
+export const ROADMAP_FILL  = "absolute top-[9px] left-1.5 h-[3px] bg-indigo-600 rounded-full transition-all duration-500";

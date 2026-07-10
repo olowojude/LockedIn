@@ -5,6 +5,7 @@ import {
   Plus, Flame, CheckCircle, ChevronRight,
   Layers, TrendingUp, Pencil, Trash2, X,
   Check, AlertTriangle, MoreVertical, Info,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useAspects } from "../../utils/useAspects";
@@ -13,16 +14,18 @@ import {
   PAGE, CONTAINER, CARD, TEXT, BTN,
   NOTICE, NOTICE_TEXT, MODAL_OVERLAY, MODAL_CARD,
   PROGRESS_TRACK, PROGRESS_FILL, LOCK_ACCENT_BAR,
+  FOREVER_BADGE,
 } from "../../utils/design";
 
-// ─── Progress ring ────────────────────────────────────────────────────────────
+// ─── Progress ring (today's activity completion — applies to every Lock,
+//     forever or fixed-duration, since it's about TODAY not the overall sprint) ──
 const ProgressRing = ({ completed, total, color }) => {
   const r    = 20;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - (total > 0 ? completed / total : 0));
   return (
     <svg width="52" height="52" style={{ transform: "rotate(-90deg)" }}>
-      <circle cx="26" cy="26" r={r} fill="none" stroke="#E5E7EB" strokeWidth="4" />
+      <circle cx="26" cy="26" r={r} fill="none" stroke="#EBEBEE" strokeWidth="4" />
       <circle cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="4"
         strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
         style={{ transition: "stroke-dashoffset 0.6s ease" }} />
@@ -217,7 +220,9 @@ const AspectCard = ({ aspect, onClick, onRefresh }) => {
             {/* Icon dot */}
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
               style={{ backgroundColor: color + "20" }}>
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />
+              {is_forever
+                ? <InfinityIcon className="w-4 h-4" style={{ color }} />
+                : <div className="w-4 h-4 rounded-full" style={{ backgroundColor: color }} />}
             </div>
 
             {/* Main content */}
@@ -227,6 +232,12 @@ const AspectCard = ({ aspect, onClick, onRefresh }) => {
                 {isDailyTasks && (
                   <span className="text-xs text-indigo-400 font-medium bg-indigo-50 px-2 py-0.5 rounded-full">
                     Daily
+                  </span>
+                )}
+                {is_forever && !isDailyTasks && (
+                  <span className={FOREVER_BADGE}>
+                    <InfinityIcon className="w-2.5 h-2.5" />
+                    Ongoing
                   </span>
                 )}
               </div>
@@ -262,14 +273,11 @@ const AspectCard = ({ aspect, onClick, onRefresh }) => {
                     <span className={TEXT.caption}>{days_remaining}d left</span>
                   </>
                 )}
-                {is_forever && (
-                  <>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <span className={TEXT.caption}>Ongoing</span>
-                  </>
-                )}
               </div>
 
+              {/* Sprint progress bar — fixed-duration Locks only.
+                  Forever Locks have no target_date, so no % to plot here;
+                  their streak is already shown above via the flame badge. */}
               {!is_forever && progress_percentage !== null && (
                 <div className="mt-2.5">
                   <div className={PROGRESS_TRACK}>

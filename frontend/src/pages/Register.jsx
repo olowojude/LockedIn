@@ -31,7 +31,7 @@ const Register = () => {
 
   const field = (id, label, type = "text", placeholder = "") => (
     <div key={id}>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor={id} className="block text-xs font-semibold text-[#8C8A80] uppercase tracking-wide mb-1.5">
         {label}
       </label>
       <input
@@ -40,20 +40,20 @@ const Register = () => {
         value={formData[id]}
         onChange={handleChange}
         placeholder={placeholder}
-        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm"
-        style={{ color: "#111827" }}
+        className="block w-full px-3 py-2.5 border border-[#E5E1D6] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A1F]/40 focus:border-[#FF5A1F] bg-white text-sm"
+        style={{ color: "#1A1A1A" }}
       />
     </div>
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-[#F1EFE9] p-4 font-sans">
+      <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-2xl shadow-sm border border-[#E5E1D6]">
         <div className="text-center">
-          <h2 className="text-2xl font-black text-gray-900 mb-1">
-            Locked<span className="text-indigo-600">In</span>
+          <h2 className="text-3xl font-bold font-display text-[#1A1A1A] mb-1">
+            Locked<span className="text-[#FF5A1F]">In</span>
           </h2>
-          <p className="text-gray-500 text-sm">Create your account to get started</p>
+          <p className="text-[#8C8A80] text-sm">Create your account to get started</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,18 +66,18 @@ const Register = () => {
           {field("password", "Password", "password", "At least 8 characters")}
 
           {error && (
-            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-xl border border-red-200">
+            <div className="text-[#B4392A] text-sm text-center bg-[#FBEAE7] p-3 rounded-xl border border-[#EEC5BC]">
               {error}
             </div>
           )}
 
           <button type="submit" disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+            className="w-full py-3 bg-[#141414] hover:bg-black text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
             {loading ? "Creating account…" : "Sign Up"}
           </button>
 
           <div className="text-center">
-            <Link to="/login" className="text-indigo-600 hover:text-indigo-500 text-sm font-medium">
+            <Link to="/login" className="text-[#FF5A1F] hover:opacity-80 text-sm font-medium">
               Already have an account? Sign in
             </Link>
           </div>

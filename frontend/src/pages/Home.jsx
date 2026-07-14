@@ -16,7 +16,7 @@ import {
 
 const LEVELS = [
   { id: 1, name: "Beginner",   icon: Star,        requirement: 1,   color: "#9CA3AF" },
-  { id: 2, name: "Committed",  icon: Flame,       requirement: 7,   color: "#F97316" },
+  { id: 2, name: "Committed",  icon: Flame,       requirement: 7,   color: "#FF5A1F" },
   { id: 3, name: "Dedicated",  icon: ShieldCheck, requirement: 14,  color: "#3B82F6" },
   { id: 4, name: "Champion",   icon: Gem,         requirement: 30,  color: "#14B8A6" },
   { id: 5, name: "Invincible", icon: Rocket,      requirement: 60,  color: "#8B5CF6" },
@@ -51,7 +51,7 @@ const LevelStrip = ({ streakData, loading }) => {
       </div>
       <div className="flex-1 min-w-0">
         <span className={TEXT.cardTitle}>{level.name}</span>
-        <span className="text-gray-300 mx-1.5 text-xs">·</span>
+        <span className="text-[#C9C5B8] mx-1.5 text-xs">·</span>
         <span className={TEXT.caption}>{unlocked} of {LEVELS.length} badges</span>
       </div>
       <div className="text-right flex-shrink-0">
@@ -122,8 +122,8 @@ const QuickAnalyticsCard = ({ streakData, streakLoading }) => {
     <div className="mb-4">
       <div className={`${CARD_HERO} p-4 flex items-center gap-4 mb-3`}>
         <svg width="64" height="64" viewBox="0 0 64 64" className="flex-shrink-0">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="7" />
-          <circle cx="32" cy="32" r={r} fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round"
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="7" />
+          <circle cx="32" cy="32" r={r} fill="none" stroke="#FF5A1F" strokeWidth="7" strokeLinecap="round"
             strokeDasharray={circ}
             strokeDashoffset={weekLoading ? circ : offset}
             style={{
@@ -136,11 +136,11 @@ const QuickAnalyticsCard = ({ streakData, streakLoading }) => {
           </text>
         </svg>
         <div className="min-w-0">
-          <div className="text-[11px] text-indigo-200 uppercase tracking-wide font-semibold mb-0.5">
+          <div className="text-[11px] text-white/50 uppercase tracking-wide font-semibold mb-0.5">
             This week
           </div>
           <div className="text-white text-sm font-semibold">{statusLabel}</div>
-          <div className="text-indigo-200 text-xs">
+          <div className="text-white/50 text-xs">
             {weekLoading ? "\u00A0" : `${weekLocked} of ${weekTotal} days locked in`}
           </div>
         </div>
@@ -148,24 +148,24 @@ const QuickAnalyticsCard = ({ streakData, streakLoading }) => {
 
       <div className="flex gap-2.5">
         <div className={QUICK_STAT}>
-          <div className={`${QUICK_STAT_ICON_WRAP} bg-orange-50`}>
-            <Flame className="w-3.5 h-3.5 text-orange-500" />
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-[#FFE7DA]`}>
+            <Flame className="w-3.5 h-3.5 text-[#FF5A1F]" />
           </div>
-          <div className="text-base font-bold text-gray-800">{streakData?.current_streak ?? 0}</div>
+          <div className="text-base font-bold text-[#1A1A1A]">{streakData?.current_streak ?? 0}</div>
           <div className={TEXT.caption}>day streak</div>
         </div>
         <div className={QUICK_STAT}>
-          <div className={`${QUICK_STAT_ICON_WRAP} bg-indigo-50`}>
-            <Lock className="w-3.5 h-3.5 text-indigo-500" />
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-[#EFECE3]`}>
+            <Lock className="w-3.5 h-3.5 text-[#1A1A1A]" />
           </div>
-          <div className="text-base font-bold text-gray-800">{activeLocks ?? "—"}</div>
+          <div className="text-base font-bold text-[#1A1A1A]">{activeLocks ?? "—"}</div>
           <div className={TEXT.caption}>active locks</div>
         </div>
         <div className={QUICK_STAT}>
-          <div className={`${QUICK_STAT_ICON_WRAP} bg-green-50`}>
-            <Trophy className="w-3.5 h-3.5 text-green-600" />
+          <div className={`${QUICK_STAT_ICON_WRAP} bg-[#FFE7DA]`}>
+            <Trophy className="w-3.5 h-3.5 text-[#FF5A1F]" />
           </div>
-          <div className="text-base font-bold text-gray-800">{streakData?.total_locked_in_days ?? 0}</div>
+          <div className="text-base font-bold text-[#1A1A1A]">{streakData?.total_locked_in_days ?? 0}</div>
           <div className={TEXT.caption}>total locked-in</div>
         </div>
       </div>
@@ -193,7 +193,7 @@ const ActivityRow = ({ activity, color, onToggle }) => {
         {optimistic && <Check className="w-3 h-3 text-white" />}
       </div>
       <span className={`text-sm flex-1 transition-all duration-200 ${
-        optimistic ? "text-gray-400 line-through" : "text-gray-700 group-hover:text-gray-900"
+        optimistic ? "text-[#B5B2A6] line-through" : "text-[#3A3830] group-hover:text-[#1A1A1A]"
       }`}>
         {activity.title}
       </span>
@@ -276,15 +276,15 @@ const LockGroup = ({ aspect, onCelebrate, onStreakRefresh }) => {
           <div className={TEXT.caption + " mt-0.5"}>
             {total > 0 ? `${completed}/${total} done today` : "No actions set"}
             {aspect.current_streak > 0 && (
-              <span className="ml-2 text-orange-400 font-medium">
+              <span className="ml-2 text-[#FF5A1F] font-medium">
                 {aspect.current_streak}d streak
               </span>
             )}
           </div>
         </div>
         <button onClick={() => navigate(`/aspects/${aspect.id}`)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
-          <ChevronRight className="w-4 h-4 text-gray-300" />
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#F1EFE9] transition-colors flex-shrink-0">
+          <ChevronRight className="w-4 h-4 text-[#C9C5B8]" />
         </button>
       </div>
 
@@ -330,14 +330,14 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
         {[1, 2].map(i => (
           <div key={i} className={`${CARD} p-4 animate-pulse`}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-gray-200 rounded-xl" />
+              <div className="w-8 h-8 bg-[#EFECE3] rounded-xl" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3.5 bg-gray-200 rounded w-28" />
-                <div className="h-2.5 bg-gray-200 rounded w-16" />
+                <div className="h-3.5 bg-[#EFECE3] rounded w-28" />
+                <div className="h-2.5 bg-[#EFECE3] rounded w-16" />
               </div>
             </div>
             <div className="space-y-2">
-              {[1, 2, 3].map(j => <div key={j} className="h-8 bg-gray-100 rounded" />)}
+              {[1, 2, 3].map(j => <div key={j} className="h-8 bg-[#F1EFE9] rounded" />)}
             </div>
           </div>
         ))}
@@ -348,8 +348,8 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
   if (!dashboard || dashboard.length === 0) {
     return (
       <div className={`${CARD} p-8 mb-4 text-center`}>
-        <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Lock className="w-8 h-8 text-indigo-300" />
+        <div className="w-16 h-16 bg-[#EFECE3] rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-8 h-8 text-[#8C8A80]" />
         </div>
         <h3 className={TEXT.sectionTitle + " mb-2"}>No Locks yet</h3>
         <p className={TEXT.caption + " mb-6 max-w-xs mx-auto leading-relaxed"}>
@@ -379,7 +379,7 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
           </p>
         </div>
         <Link to="/aspects"
-          className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 transition-colors">
+          className="text-xs font-semibold text-[#FF5A1F] hover:opacity-80 transition-colors">
           See all
         </Link>
       </div>
@@ -394,7 +394,7 @@ const LocksSection = ({ onCelebrate, onStreakRefresh }) => {
       ))}
 
       <button onClick={() => navigate("/onboarding")}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-400 hover:bg-indigo-50/50 transition-all text-sm font-medium mt-1">
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-[#E5E1D6] text-[#8C8A80] hover:border-[#FF5A1F]/50 hover:text-[#FF5A1F] hover:bg-[#FFE7DA]/30 transition-all text-sm font-medium mt-1">
         <Plus className="w-4 h-4" />
         Add a Lock
       </button>
@@ -453,15 +453,20 @@ export default function HomePage() {
       <div className={PAGE}>
         <Navbar />
         <div className={CONTAINER}>
-          <div className="mb-4">
-            <h1 className={TEXT.pageTitle}>
-              {new Date().toLocaleDateString("en-US", { weekday: "long" })}
-            </h1>
-            <p className={TEXT.caption}>
-              {new Date().toLocaleDateString("en-US", {
-                month: "long", day: "numeric", year: "numeric",
-              })}
+          <div className="mb-6">
+            <p className={TEXT.label}>
+              Today &middot; {new Date().toLocaleDateString("en-US", {
+                weekday: "long", day: "numeric", month: "long",
+              }).toUpperCase()}
             </p>
+            <h1 className="text-3xl font-bold font-display text-[#1A1A1A] leading-tight mt-1">
+              {streakLoading ? "\u00A0" : (() => {
+                const streak = streakData?.current_streak ?? 0;
+                const lead = streak === 0 ? "Let's lock in " : streak === 1 ? "1 day of " : `${streak} days of `;
+                const tail = streak === 0 ? "today." : "absolute focus.";
+                return <>{lead}<span className="text-[#FF5A1F]">{tail}</span></>;
+              })()}
+            </h1>
           </div>
 
           <LevelStrip streakData={streakData} loading={streakLoading} />

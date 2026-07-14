@@ -42,19 +42,19 @@ export default function Navbar() {
   const linkCls = (path) =>
     `flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 ${
       isActive(path)
-        ? "bg-indigo-100 text-indigo-700 shadow-sm"
-        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+        ? "bg-[#141414] text-white shadow-sm"
+        : "text-[#8C8A80] hover:text-[#1A1A1A] hover:bg-[#F1EFE9]"
     }`;
 
   const mobileLinkCls = (path) =>
     `w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
       isActive(path)
-        ? "bg-indigo-100 text-indigo-700 shadow-sm"
-        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+        ? "bg-[#141414] text-white shadow-sm"
+        : "text-[#8C8A80] hover:text-[#1A1A1A] hover:bg-[#F1EFE9]"
     }`;
 
   return (
-    <nav className="bg-white/90 backdrop-blur-xl shadow-sm border-b border-gray-200/60 sticky top-0 z-50">
+    <nav className="bg-white/90 backdrop-blur-xl shadow-sm border-b border-[#E5E1D6] sticky top-0 z-50 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
 
@@ -70,14 +70,14 @@ export default function Navbar() {
                 {label}
               </Link>
             ))}
-            <div className="flex items-center gap-3 pl-4 border-l border-gray-200 ml-2">
-              <span className="text-gray-600 text-sm">
+            <div className="flex items-center gap-3 pl-4 border-l border-[#E5E1D6] ml-2">
+              <span className="text-[#3A3830] text-sm">
                 {user?.first_name || user?.username || "User"}
               </span>
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="flex items-center gap-2 text-red-500 hover:text-red-600 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 text-[#FF5A1F] hover:opacity-80 text-sm font-medium px-3 py-2 rounded-lg hover:bg-[#FFE7DA] transition-all disabled:opacity-50"
               >
                 <LogOut className="w-4 h-4" />
                 {loggingOut ? "Logging out…" : "Logout"}
@@ -88,17 +88,17 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(o => !o)}
-            className="md:hidden w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors"
+            className="md:hidden w-10 h-10 bg-[#F1EFE9] hover:bg-[#E5E1D6] rounded-xl flex items-center justify-center transition-colors"
           >
             {mobileOpen
-              ? <X    className="w-5 h-5 text-gray-600" />
-              : <Menu className="w-5 h-5 text-gray-600" />}
+              ? <X    className="w-5 h-5 text-[#3A3830]" />
+              : <Menu className="w-5 h-5 text-[#3A3830]" />}
           </button>
         </div>
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200/60 shadow-lg z-50">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-[#E5E1D6] shadow-lg z-50">
             <div className="px-4 py-4 space-y-1">
               {NAV_ITEMS.map(({ label, path, icon: Icon }) => (
                 <Link
@@ -111,17 +111,17 @@ export default function Navbar() {
                   {label}
                 </Link>
               ))}
-              <div className="border-t border-gray-200 pt-3 mt-3">
-                <div className="px-4 py-2 text-sm text-gray-500">
+              <div className="border-t border-[#E5E1D6] pt-3 mt-3">
+                <div className="px-4 py-2 text-sm text-[#8C8A80]">
                   Signed in as{" "}
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-[#3A3830]">
                     {user?.first_name || user?.username}
                   </span>
                 </div>
                 <button
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 font-medium transition-all disabled:opacity-50"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[#FF5A1F] hover:bg-[#FFE7DA] font-medium transition-all disabled:opacity-50"
                 >
                   <LogOut className="w-5 h-5" />
                   {loggingOut ? "Logging out…" : "Logout"}

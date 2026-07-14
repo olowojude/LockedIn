@@ -27,16 +27,18 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md">
-        <div>
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-2">Sign In</h2>
-          <p className="text-center text-gray-600">Welcome back to LockedIn</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#F1EFE9] p-4 font-sans">
+      <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-2xl shadow-sm border border-[#E5E1D6]">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold font-display text-[#1A1A1A] mb-1">
+            Sign in
+          </h2>
+          <p className="text-[#8C8A80] text-sm">Welcome back to LockedIn</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="username" className="block text-xs font-semibold text-[#8C8A80] uppercase tracking-wide mb-1.5">
               Username
             </label>
             <input
@@ -47,13 +49,13 @@ const Login = () => {
               value={formData.username}
               onChange={handleChange}
               placeholder="Enter your username"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
-              style={{ color: "#111827" }}
+              className="block w-full px-3 py-2.5 border border-[#E5E1D6] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A1F]/40 focus:border-[#FF5A1F] bg-white text-sm"
+              style={{ color: "#1A1A1A" }}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="block text-xs font-semibold text-[#8C8A80] uppercase tracking-wide mb-1.5">
               Password
             </label>
             <input
@@ -64,13 +66,13 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="Enter your password"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white"
-              style={{ color: "#111827" }}
+              className="block w-full px-3 py-2.5 border border-[#E5E1D6] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A1F]/40 focus:border-[#FF5A1F] bg-white text-sm"
+              style={{ color: "#1A1A1A" }}
             />
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-md">
+            <div className="text-[#B4392A] text-sm text-center bg-[#FBEAE7] p-3 rounded-xl border border-[#EEC5BC]">
               {error}
             </div>
           )}
@@ -78,13 +80,13 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex justify-center py-3 px-4 rounded-xl shadow-sm text-white bg-[#141414] hover:bg-black font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
           >
             {loading ? "Signing in…" : "Sign In"}
           </button>
 
           <div className="text-center">
-            <Link to="/register" className="text-blue-600 hover:text-blue-500 text-sm font-medium">
+            <Link to="/register" className="text-[#FF5A1F] hover:opacity-80 text-sm font-medium">
               Don't have an account? Sign up
             </Link>
           </div>

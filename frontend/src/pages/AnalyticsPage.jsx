@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
 import {
   BarChart3, Calendar, ChevronLeft, ChevronRight,
-  TrendingUp, Target, Award, RefreshCw, Check, X,
+  RefreshCw, Check, X,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import api from "../../utils/api";
-import { PAGE, CONTAINER, CARD, TEXT, BTN, STATUS } from "../../utils/design";
+import { PAGE, CONTAINER, CARD, TEXT, STATUS } from "../../utils/design";
 
 // ─── Unified day colour system ────────────────────────────────────────────────
-// green = locked in, orange = partial, grey = nothing
+// black = locked in, orange = partial, cream = nothing — matches the app's
+// brand palette rather than a generic green/red traffic-light scheme.
 const DAY_COLORS = {
-  locked:  { bg: '#22c55e', text: '#fff',     ring: '#16a34a' },
-  partial: { bg: '#f97316', text: '#fff',     ring: '#ea6f10' },
-  none:    { bg: '#f3f4f6', text: '#9ca3af',  ring: 'transparent' },
+  locked:  { bg: '#141414', text: '#fff',    ring: '#000000' },
+  partial: { bg: '#FF5A1F', text: '#fff',    ring: '#E04E1A' },
+  none:    { bg: '#EFECE3', text: '#8C8A80', ring: 'transparent' },
 };
 
 function getDayStyle(day) {
@@ -26,8 +27,8 @@ const Tab = ({ label, icon: Icon, active, onClick }) => (
   <button onClick={onClick}
     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
       active
-        ? "bg-indigo-600 text-white shadow-sm"
-        : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+        ? "bg-[#141414] text-white shadow-sm"
+        : "text-[#8C8A80] hover:text-[#1A1A1A] hover:bg-[#F1EFE9]"
     }`}>
     <Icon className="w-4 h-4" />
     {label}
@@ -38,9 +39,9 @@ const Tab = ({ label, icon: Icon, active, onClick }) => (
 const StatCard = ({ value, label, colorKey = "indigo" }) => {
   const s = STATUS[colorKey];
   return (
-    <div className={`${s?.bg || 'bg-gray-50'} border ${s?.border || 'border-gray-200'} rounded-2xl p-4 text-center`}>
-      <div className={`text-2xl font-black ${s?.text || 'text-gray-800'}`}>{value}</div>
-      <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+    <div className={`${s?.bg || 'bg-[#F1EFE9]'} border ${s?.border || 'border-[#E5E1D6]'} rounded-2xl p-4 text-center`}>
+      <div className={`text-2xl font-black font-display ${s?.text || 'text-[#1A1A1A]'}`}>{value}</div>
+      <div className="text-xs text-[#8C8A80] mt-0.5">{label}</div>
     </div>
   );
 };
@@ -48,10 +49,10 @@ const StatCard = ({ value, label, colorKey = "indigo" }) => {
 // ─── Nav arrows ──────────────────────────────────────────────────────────────
 const NavArrow = ({ onClick, disabled, dir }) => (
   <button onClick={onClick} disabled={disabled}
-    className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+    className="w-8 h-8 bg-[#EFECE3] hover:bg-[#E5E1D6] rounded-lg flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
     {dir === "prev"
-      ? <ChevronLeft  className="w-4 h-4 text-gray-500" />
-      : <ChevronRight className="w-4 h-4 text-gray-500" />}
+      ? <ChevronLeft  className="w-4 h-4 text-[#3A3830]" />
+      : <ChevronRight className="w-4 h-4 text-[#3A3830]" />}
   </button>
 );
 
@@ -64,7 +65,7 @@ const CalendarGrid = ({ year, month, dailyData, selectedDay, onDayClick }) => {
     <>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {["S","M","T","W","T","F","S"].map((d, i) => (
-          <div key={i} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
+          <div key={i} className="text-center text-xs text-[#8C8A80] font-medium py-1">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -85,8 +86,8 @@ const CalendarGrid = ({ year, month, dailyData, selectedDay, onDayClick }) => {
               }
               className={`h-8 rounded-lg flex items-center justify-center text-xs font-medium transition-all duration-150 ${
                 clickable ? 'cursor-pointer hover:scale-110' : 'cursor-default'
-              } ${isToday   ? 'ring-2 ring-blue-400 ring-offset-1' : ''} ${
-                isSelected ? 'ring-2 ring-indigo-500 ring-offset-1' : ''
+              } ${isToday   ? 'ring-2 ring-[#FF5A1F] ring-offset-1' : ''} ${
+                isSelected ? 'ring-2 ring-[#141414] ring-offset-1' : ''
               }`}
               style={{ backgroundColor: style.bg, color: style.text }}>
               {day.day}
@@ -103,8 +104,8 @@ const CalendarGrid = ({ year, month, dailyData, selectedDay, onDayClick }) => {
         ].map(({ color, label, border }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded"
-              style={{ backgroundColor: color, border: border ? '1px solid #e5e7eb' : 'none' }} />
-            <span className="text-xs text-gray-400">{label}</span>
+              style={{ backgroundColor: color, border: border ? '1px solid #E5E1D6' : 'none' }} />
+            <span className="text-xs text-[#8C8A80]">{label}</span>
           </div>
         ))}
       </div>
@@ -130,20 +131,20 @@ const DayDetail = ({ day, onClose }) => {
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+    <div className="bg-white rounded-2xl border border-[#E5E1D6] shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#EFECE3]">
         <div>
-          <div className="font-bold text-gray-800 text-sm">{label}</div>
+          <div className="font-bold text-[#1A1A1A] text-sm">{label}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <div className="w-2 h-2 rounded-full"
               style={{ backgroundColor: getDayStyle(day).bg }} />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-[#8C8A80]">
               {day.is_locked_in ? 'Locked in' : day.is_partial ? 'Partial' : 'No activity'}
             </span>
           </div>
         </div>
         <button onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#C9C5B8] hover:text-[#3A3830] hover:bg-[#F1EFE9] transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -151,10 +152,10 @@ const DayDetail = ({ day, onClose }) => {
       <div className="p-4">
         {loading ? (
           <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}
+            {[1,2,3].map(i => <div key={i} className="h-10 bg-[#EFECE3] rounded-xl animate-pulse" />)}
           </div>
         ) : !data?.by_aspect?.length ? (
-          <p className="text-center text-sm text-gray-400 py-3">No activities recorded.</p>
+          <p className="text-center text-sm text-[#8C8A80] py-3">No activities recorded.</p>
         ) : (
           <div className="space-y-4">
             {data.by_aspect.map(group => {
@@ -165,9 +166,9 @@ const DayDetail = ({ day, onClose }) => {
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: group.color }} />
-                    <span className="text-xs font-semibold text-gray-600">{group.aspect_name}</span>
+                    <span className="text-xs font-semibold text-[#3A3830]">{group.aspect_name}</span>
                     {allDone && (
-                      <span className="ml-auto text-xs text-green-600 font-semibold flex items-center gap-0.5">
+                      <span className="ml-auto text-xs text-[#FF5A1F] font-semibold flex items-center gap-0.5">
                         <Check className="w-3 h-3" /> Locked in
                       </span>
                     )}
@@ -178,15 +179,15 @@ const DayDetail = ({ day, onClose }) => {
                       <div key={act.id}
                         className={`flex items-center gap-2.5 p-2.5 rounded-xl text-sm ${
                           act.completed
-                            ? 'bg-green-50 border border-green-100'
-                            : 'bg-gray-50 border border-gray-100'
+                            ? 'bg-[#F1EFE9] border border-[#E5E1D6]'
+                            : 'bg-white border border-[#EFECE3]'
                         }`}>
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          act.completed ? 'bg-green-500' : 'border-2 border-gray-300'
+                          act.completed ? 'bg-[#141414]' : 'border-2 border-[#C9C5B8]'
                         }`}>
                           {act.completed && <Check className="w-2.5 h-2.5 text-white" />}
                         </div>
-                        <span className={act.completed ? 'text-gray-400 line-through' : 'text-gray-700'}>
+                        <span className={act.completed ? 'text-[#B5B2A6] line-through' : 'text-[#3A3830]'}>
                           {act.title}
                         </span>
                       </div>
@@ -197,10 +198,10 @@ const DayDetail = ({ day, onClose }) => {
             })}
 
             {/* Summary */}
-            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+            <div className="pt-2 border-t border-[#EFECE3] flex items-center justify-between text-xs text-[#8C8A80]">
               <span>{data.completed_tasks}/{data.total_tasks} activities completed</span>
               {data.is_locked_in && (
-                <span className="text-green-600 font-semibold flex items-center gap-1">
+                <span className="text-[#FF5A1F] font-semibold flex items-center gap-1">
                   <Check className="w-3 h-3" /> Fully locked in
                 </span>
               )}
@@ -249,17 +250,17 @@ const MonthlyView = () => {
 
   if (loading) return (
     <div className="animate-pulse space-y-4">
-      <div className="h-8 bg-gray-200 rounded w-40" />
+      <div className="h-8 bg-[#EFECE3] rounded w-40" />
       <div className="grid grid-cols-7 gap-1.5">
-        {Array.from({ length: 35 }, (_, i) => <div key={i} className="h-8 bg-gray-200 rounded" />)}
+        {Array.from({ length: 35 }, (_, i) => <div key={i} className="h-8 bg-[#EFECE3] rounded" />)}
       </div>
     </div>
   );
 
   if (error) return (
     <div className="text-center py-10">
-      <p className="text-red-400 text-sm mb-3">{error}</p>
-      <button onClick={() => load()} className="text-indigo-600 font-semibold text-sm">Try again</button>
+      <p className="text-[#B4392A] text-sm mb-3">{error}</p>
+      <button onClick={() => load()} className="text-[#FF5A1F] font-semibold text-sm">Try again</button>
     </div>
   );
 
@@ -269,35 +270,35 @@ const MonthlyView = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <NavArrow onClick={() => nav("prev")} dir="prev" />
-          <span className="font-bold text-gray-800 text-sm min-w-[140px] text-center">
+          <span className="font-bold font-display text-[#1A1A1A] text-sm min-w-[140px] text-center">
             {data?.month_name} {data?.year}
           </span>
           <NavArrow onClick={() => nav("next")} dir="next" />
         </div>
         <button onClick={() => load(true)} disabled={refreshing}
-          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
-          <RefreshCw className={`w-4 h-4 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
+          className="w-8 h-8 bg-[#EFECE3] hover:bg-[#E5E1D6] rounded-lg flex items-center justify-center transition-colors">
+          <RefreshCw className={`w-4 h-4 text-[#3A3830] ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-green-600">
+        <div className="bg-[#EFECE3] border border-[#E5E1D6] rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black font-display text-[#1A1A1A]">
             {data?.statistics?.total_locked_in_days || 0}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">Locked-in days</div>
+          <div className="text-xs text-[#8C8A80] mt-0.5">Locked-in days</div>
         </div>
-        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-indigo-600">
+        <div className="bg-[#FFE7DA] border border-[#FFC4A3] rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black font-display text-[#FF5A1F]">
             {data?.statistics?.locked_in_percentage || 0}%
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">Success rate</div>
+          <div className="text-xs text-[#8C8A80] mt-0.5">Success rate</div>
         </div>
       </div>
 
       {/* Calendar */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 border border-[#E5E1D6] shadow-sm">
         <CalendarGrid
           year={data?.year}
           month={data?.month}
@@ -354,13 +355,14 @@ const YearlyView = () => {
     else { setMonthData(null); setSelectedDay(null); }
   }, [selMonth, year]);
 
-  // Month tile colour based on locked-in percentage
+  // Month tile colour based on locked-in percentage — black for top performance,
+  // orange scaling down for lower rates, cream for no activity. No green/red
+  // traffic-light scheme, to stay inside the brand's black/orange/cream palette.
   const monthTileColor = (pct) => {
-    if (pct >= 80) return { bg: '#22c55e22', border: '#22c55e', text: '#16a34a' };
-    if (pct >= 60) return { bg: '#f9731622', border: '#f97316', text: '#ea580c' };
-    if (pct >= 30) return { bg: '#eab30822', border: '#eab308', text: '#ca8a04' };
-    if (pct >  0)  return { bg: '#ef444422', border: '#ef4444', text: '#dc2626' };
-    return           { bg: '#f3f4f6',     border: '#e5e7eb', text: '#9ca3af' };
+    if (pct >= 80) return { bg: '#141414', border: '#141414', text: '#FFFFFF' };
+    if (pct >= 50) return { bg: '#FFE7DA', border: '#FF5A1F', text: '#FF5A1F' };
+    if (pct >  0)  return { bg: '#FBF2DE', border: '#EAD9A8', text: '#8A6D1F' };
+    return           { bg: '#F1EFE9', border: '#E5E1D6', text: '#8C8A80' };
   };
 
   const stats = (() => {
@@ -376,18 +378,18 @@ const YearlyView = () => {
   if (loading) return (
     <div className="animate-pulse space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        {[1,2,3,4].map(i => <div key={i} className="h-20 bg-gray-200 rounded-2xl" />)}
+        {[1,2,3,4].map(i => <div key={i} className="h-20 bg-[#EFECE3] rounded-2xl" />)}
       </div>
       <div className="grid grid-cols-3 gap-2">
-        {Array.from({ length: 12 }, (_, i) => <div key={i} className="h-16 bg-gray-200 rounded-xl" />)}
+        {Array.from({ length: 12 }, (_, i) => <div key={i} className="h-16 bg-[#EFECE3] rounded-xl" />)}
       </div>
     </div>
   );
 
   if (error) return (
     <div className="text-center py-10">
-      <p className="text-red-400 text-sm mb-3">{error}</p>
-      <button onClick={() => load()} className="text-indigo-600 font-semibold text-sm">Try again</button>
+      <p className="text-[#B4392A] text-sm mb-3">{error}</p>
+      <button onClick={() => load()} className="text-[#FF5A1F] font-semibold text-sm">Try again</button>
     </div>
   );
 
@@ -397,7 +399,7 @@ const YearlyView = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <NavArrow onClick={() => { setYear(y => y - 1); setSelMonth(null); }} dir="prev" />
-          <span className="font-bold text-gray-800 text-sm w-12 text-center">{year}</span>
+          <span className="font-bold font-display text-[#1A1A1A] text-sm w-12 text-center">{year}</span>
           <NavArrow
             onClick={() => { setYear(y => y + 1); setSelMonth(null); }}
             disabled={year >= new Date().getFullYear()}
@@ -405,38 +407,38 @@ const YearlyView = () => {
           />
         </div>
         <button onClick={() => load(true)} disabled={refreshing}
-          className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center transition-colors">
-          <RefreshCw className={`w-4 h-4 text-gray-500 ${refreshing ? "animate-spin" : ""}`} />
+          className="w-8 h-8 bg-[#EFECE3] hover:bg-[#E5E1D6] rounded-lg flex items-center justify-center transition-colors">
+          <RefreshCw className={`w-4 h-4 text-[#3A3830] ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </div>
 
       {/* Year stats */}
       {stats && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-            <div className="text-2xl font-black text-green-600">{stats.totalLocked}</div>
-            <div className="text-xs text-gray-400 mt-0.5">Locked-in days</div>
+          <div className="bg-[#EFECE3] border border-[#E5E1D6] rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black font-display text-[#1A1A1A]">{stats.totalLocked}</div>
+            <div className="text-xs text-[#8C8A80] mt-0.5">Locked-in days</div>
           </div>
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center">
-            <div className="text-2xl font-black text-indigo-600">{stats.yearPct}%</div>
-            <div className="text-xs text-gray-400 mt-0.5">Year success</div>
+          <div className="bg-[#FFE7DA] border border-[#FFC4A3] rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black font-display text-[#FF5A1F]">{stats.yearPct}%</div>
+            <div className="text-xs text-[#8C8A80] mt-0.5">Year success</div>
           </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 text-center">
-            <div className="text-2xl font-black text-purple-600">{stats.avg}%</div>
-            <div className="text-xs text-gray-400 mt-0.5">Monthly avg</div>
+          <div className="bg-[#EFECE3] border border-[#E5E1D6] rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black font-display text-[#1A1A1A]">{stats.avg}%</div>
+            <div className="text-xs text-[#8C8A80] mt-0.5">Monthly avg</div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-            <div className="text-2xl font-black text-amber-600">
+          <div className="bg-[#FFE7DA] border border-[#FFC4A3] rounded-2xl p-4 text-center">
+            <div className="text-2xl font-black font-display text-[#FF5A1F]">
               {stats.best?.month_name?.slice(0, 3) || '—'}
             </div>
-            <div className="text-xs text-gray-400 mt-0.5">Best month</div>
+            <div className="text-xs text-[#8C8A80] mt-0.5">Best month</div>
           </div>
         </div>
       )}
 
       {/* Month grid */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-        <p className="text-xs text-gray-400 mb-3">Tap a month for details</p>
+      <div className="bg-white rounded-2xl p-4 border border-[#E5E1D6] shadow-sm">
+        <p className="text-xs text-[#8C8A80] mb-3">Tap a month for details</p>
         <div className="grid grid-cols-3 gap-2">
           {data?.monthly_stats?.map(month => {
             const c = monthTileColor(month.locked_in_percentage);
@@ -444,16 +446,16 @@ const YearlyView = () => {
               <button key={month.month}
                 onClick={() => setSelMonth(s => s === month.month ? null : month.month)}
                 className={`p-3 rounded-xl text-left transition-all duration-200 hover:scale-[1.02] ${
-                  selMonth === month.month ? 'ring-2 ring-indigo-400 ring-offset-1' : ''
+                  selMonth === month.month ? 'ring-2 ring-[#FF5A1F] ring-offset-1' : ''
                 }`}
                 style={{ backgroundColor: c.bg, border: `1.5px solid ${c.border}` }}>
                 <div className="text-xs font-bold" style={{ color: c.text }}>
                   {month.month_name.slice(0, 3)}
                 </div>
-                <div className="text-xl font-black leading-none mt-1" style={{ color: c.text }}>
+                <div className="text-xl font-black font-display leading-none mt-1" style={{ color: c.text }}>
                   {month.locked_in_days}
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: c.text + 'CC' }}>
+                <div className="text-xs mt-0.5" style={{ color: c.text, opacity: 0.8 }}>
                   {Math.round(month.locked_in_percentage)}%
                 </div>
               </button>
@@ -464,39 +466,39 @@ const YearlyView = () => {
 
       {/* Month drill-down */}
       {selMonth && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="bg-white rounded-2xl border border-[#E5E1D6] shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#EFECE3]">
             <div>
-              <div className="font-bold text-gray-800 text-sm">
+              <div className="font-bold font-display text-[#1A1A1A] text-sm">
                 {data?.monthly_stats.find(m => m.month === selMonth)?.month_name} {year}
               </div>
-              <div className="text-xs text-gray-400">Daily breakdown — tap a day</div>
+              <div className="text-xs text-[#8C8A80]">Daily breakdown — tap a day</div>
             </div>
             <button onClick={() => { setSelMonth(null); setSelectedDay(null); }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#C9C5B8] hover:text-[#3A3830] hover:bg-[#F1EFE9] transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {monthLoading ? (
             <div className="p-4 animate-pulse space-y-2">
-              {[1,2].map(i => <div key={i} className="h-10 bg-gray-100 rounded" />)}
+              {[1,2].map(i => <div key={i} className="h-10 bg-[#EFECE3] rounded" />)}
             </div>
           ) : monthData ? (
             <div className="p-4 space-y-4">
               {/* Mini stats */}
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                  <div className="text-lg font-black text-green-600">
+                <div className="bg-[#EFECE3] border border-[#E5E1D6] rounded-xl p-3 text-center">
+                  <div className="text-lg font-black font-display text-[#1A1A1A]">
                     {monthData.statistics.total_locked_in_days}
                   </div>
-                  <div className="text-xs text-gray-400">Locked days</div>
+                  <div className="text-xs text-[#8C8A80]">Locked days</div>
                 </div>
-                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-center">
-                  <div className="text-lg font-black text-indigo-600">
+                <div className="bg-[#FFE7DA] border border-[#FFC4A3] rounded-xl p-3 text-center">
+                  <div className="text-lg font-black font-display text-[#FF5A1F]">
                     {monthData.statistics.locked_in_percentage}%
                   </div>
-                  <div className="text-xs text-gray-400">Success rate</div>
+                  <div className="text-xs text-[#8C8A80]">Success rate</div>
                 </div>
               </div>
 
@@ -510,7 +512,7 @@ const YearlyView = () => {
               />
             </div>
           ) : (
-            <p className="text-xs text-gray-400 p-4 text-center">Failed to load details.</p>
+            <p className="text-xs text-[#8C8A80] p-4 text-center">Failed to load details.</p>
           )}
         </div>
       )}
@@ -533,12 +535,12 @@ export default function AnalyticsPage() {
       <div className={PAGE}>
         <div className={CONTAINER}>
           <div className="mb-6">
-            <h1 className="text-2xl font-black text-gray-800">Analytics</h1>
-            <p className="text-sm text-gray-400 mt-0.5">Your performance over time</p>
+            <h1 className={TEXT.pageTitle}>Analytics</h1>
+            <p className={TEXT.caption + " mt-0.5"}>Your performance over time</p>
           </div>
 
           {/* Tabs */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5 flex gap-1 mb-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-[#E5E1D6] p-1.5 flex gap-1 mb-6">
             <Tab label="Monthly" icon={Calendar} active={activeTab === "monthly"} onClick={() => setActiveTab("monthly")} />
             <Tab label="Yearly"  icon={BarChart3} active={activeTab === "yearly"}  onClick={() => setActiveTab("yearly")}  />
           </div>
